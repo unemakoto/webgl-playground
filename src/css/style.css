@@ -1,7 +1,7 @@
 @charset "UTF-8";
-/* --------------------------------------
-  画像読み込み完了後に見せるcss
--------------------------------------- */
+body {
+  font-size: 16px;
+}
 
 header, footer {
   background-color: #ccc;
