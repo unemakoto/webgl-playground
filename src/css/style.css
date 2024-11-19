@@ -1,0 +1,21 @@
+@charset "UTF-8";
+/* --------------------------------------
+  画像読み込み完了後に見せるcss
+-------------------------------------- */
+
+header, footer {
+  background-color: #ccc;
+  height: 100px;
+  line-height: 100px;
+  text-align: center;
+}
+
+#canvas {
+  display: block;
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: -1;
+}
