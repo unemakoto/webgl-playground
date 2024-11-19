@@ -276,18 +276,3 @@ function _attachStatsJs() {
   });
 }
 // stats.jsのハンドラ関数（ここまで）-----------------------
-
-// // scrollTriggerの初期化処理
-// function initInview(){
-//   gsap.registerPlugin(ScrollTrigger);
-//   const elements = document.querySelectorAll('[data-webgl]'); 
-//   elements.forEach(el => {
-//     gsap.to(el, {
-//       x: 100,
-//       scrollTrigger: {
-//         trigger: el,
-//         start: "center 60%"
-//       }
-//     });
-//   });
-// }
