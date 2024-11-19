@@ -27,6 +27,13 @@
       margin-top: 10px;
       margin-bottom: 200px;
     }
+
+    a {
+      display: block;
+      max-width: 512px;
+      aspect-ratio: 512 / 256;
+      margin-inline: auto;
+    }
   </style>
 </head>
 
@@ -43,16 +50,24 @@
 
   <div style="margin-top: 100vh;"></div>
 
-  <div class="photo" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
+  <a href="https://www.asahi.com/national/" target="_blank">
+    <div class="photo" data-webgl="meshHover" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
+  </a>
   <div class="caption">一つ目の画像です</div>
 
-  <div class="photo" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
+  <a href="https://www.asahi.com/business/" target="_blank">
+    <div class="photo" data-webgl="meshHover" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
+  </a>
   <div class="caption">二つ目の画像です</div>
 
-  <div class="photo" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+  <a href="https://www.asahi.com/politics/" target="_blank">
+    <div class="photo" data-webgl="meshHover" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+  </a>
   <div class="caption">三つ目の画像です</div>
 
-  <div class="video" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
+  <a href="https://www.asahi.com/international/" target="_blank">
+    <div class="video" data-webgl="meshHover" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
+  </a>
   <div class="caption">動画です</div>
 
   <canvas id="canvas"></canvas>

@@ -1,9 +1,9 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, Raycaster, Vector2 } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import rgbShiftVertexGlsl from "./glsl/rgbShift/vertex.glsl";
-import rgbShiftFragmentGlsl from "./glsl/rgbShift/fragment.glsl";
+import meshHoverVertexGlsl from "./glsl/meshHover/vertex.glsl";
+import meshHoverFragmentGlsl from "./glsl/meshHover/fragment.glsl";
 import GUI from "lil-gui";
 
 // デバッグモードにしたい場合は引数を1にする。
@@ -19,6 +19,10 @@ let material = null;
 
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
+
+// RayCast導入
+const raycaster = new Raycaster();
+const pointer = new Vector2();
 
 init();
 async function init() {
@@ -62,15 +66,15 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "rgbShift") {
+    if (dataWebgl == "meshHover") {
       material = new ShaderMaterial({
-        vertexShader: rgbShiftVertexGlsl,
-        fragmentShader: rgbShiftFragmentGlsl,
+        vertexShader: meshHoverVertexGlsl,
+        fragmentShader: meshHoverFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
           uTick: { value: 0 },
-          uScrollOffset: { value: 0 }
+          uOpacity: { value: 1.0 }
         },
         transparent: true,
         alphaTest: 0.5
@@ -150,42 +154,73 @@ async function init() {
       const mesh_obj = obj_array[i];
       updateMeshPosition(mesh_obj);
       // uTickインクリメントはobj_array[]のループ内で
-      // mesh_obj.material.uniforms.uTick.value++;
-      mesh_obj.material.uniforms.uScrollOffset.value = scrollOffset; // uScrollOffsetを更新
+      mesh_obj.material.uniforms.uTick.value++;
     }
+
+    // RayCast処理
+    raycast();
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
-
-    // スクロールに遅延して慣性アニメーションさせる
-    updateScrollAnime();
   }
 }
 
-// スクロール遅延して慣性アニメーション（ここから）----------
-let targetScrollY = 0; // 本来のスクロール位置
-let currentScrollY = 0; // 線形補間を適用した現在のスクロール位置
-let scrollOffset = 0; // 上記2つの差分
-
-// Lerp関数本体（rateは0.1とか小さい値にすること）
-function lerp(start, end, rate){
+// lerp関数
+function lerp(start, end, rate) {
+  // console.log(`${start}\t\t${end}`);
   let current = (1.0 - rate) * start + rate * end;
-  // 差分が小さくなったら終点の値を設定（処理量削減）
-  if(Math.abs(end - current) < 0.001) {
+  // 差分が小さくなったら終点の値を設定
+  if (Math.abs(end - current) < 0.001) {
     current = end;
   }
   return current;
 }
 
-function updateScrollAnime(){
-  // スクロール位置を取得
-  targetScrollY = document.documentElement.scrollTop;
-  // スクロール量を線形補間で求める（αは0.1）
-  currentScrollY = lerp(currentScrollY, targetScrollY, 0.1);
-  scrollOffset = targetScrollY - currentScrollY;
+// RayCast処理
+function onPointerMove(event) {
+  // calculate pointer position in normalized device coordinates
+  // (-1 to +1) for both components
+  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
 }
-// スクロール遅延して慣性アニメーション（ここまで）----------
+
+function raycast() {
+  // update the picking ray with the camera and pointer position
+  raycaster.setFromCamera(pointer, world.camera);
+
+  // rayが交差した順（手前から）でintersects[]に入る
+  const intersects = raycaster.intersectObjects(world.scene.children);
+  // 現時点でのマウスカーソルのrayと交差するメッシュを取得
+  const current_intersect = intersects[0];
+
+  // ループ回数はメッシュの個数に直す（ここでは3回）
+  for (let i = 0; i < world.scene.children.length; i++) {
+    // 変数名が長いので_meshに入れているだけ
+    const _mesh = world.scene.children[i];
+
+    // helperのAxisなど、uniform変数がそもそもない場合はエラーになるため即抜けるようにする
+    if (!_mesh.material?.uniforms) continue;
+
+    // 変数名が長いので_uOpacityに入れているだけ
+    const _uOpacity = _mesh.material.uniforms.uOpacity
+
+    if (current_intersect?.object === _mesh) {
+      // hoverしていればuOpacityのゴール地点を0.5にする
+      _uOpacity.endValue = 0.5;
+    }
+    else {
+      // hoverしていなかったらuOpacityのゴール地点を1.0にする
+      _uOpacity.endValue = 1.0;
+    }
+
+    // 始点：現状の.value、終点：上記で設定した.endValue
+    // ※raycast()の中なのでlerp()は毎フレームコールされる
+    _uOpacity.value = lerp(_uOpacity.value, _uOpacity.endValue, 0.05);
+  }
+}
+
+window.addEventListener('pointermove', onPointerMove);
 
 // メッシュ座標を更新し続ける関数
 function updateMeshPosition(mesh_obj) {
