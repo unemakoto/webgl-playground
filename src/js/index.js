@@ -2,8 +2,8 @@ import "../css/style.css";
 import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import switchTexVertexGlsl from "./glsl/switchTex/vertex.glsl";
-import switchTexFragmentGlsl from "./glsl/switchTex/fragment.glsl";
+import distortTexVertexGlsl from "./glsl/distortTex/vertex.glsl";
+import distortTexFragmentGlsl from "./glsl/distortTex/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -66,10 +66,10 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if(dataWebgl == "switchTex"){
+    if(dataWebgl == "distortTex"){
       material = new ShaderMaterial({
-        vertexShader: switchTexVertexGlsl,
-        fragmentShader: switchTexFragmentGlsl,
+        vertexShader: distortTexVertexGlsl,
+        fragmentShader: distortTexFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
@@ -148,7 +148,7 @@ async function init() {
   for (let i = 0; i < obj_array.length; i++) {
     gsap.to(obj_array[i].material.uniforms.uProgress, {
       value: 1.0, // 遷移後の値
-      duration: 2.0,
+      duration: 0.5,
       ease: "none",
       scrollTrigger: {
         trigger: obj_array[i].$.el,
