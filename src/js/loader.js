@@ -8,14 +8,13 @@ const loader = {
   getTexByElement
 }
 
-// index.jsの画像読み込みを踏襲
 async function loadAllAssets() {
   const elements = document.querySelectorAll('[data-webgl]');
   for (const el of elements) { // ここはforEach()でもOK
     const data = el.dataset;
 
     // for ... ofではエラーになる。dataがiterableでないため。
-    for (let key in data) { // ここ、letでなくconstでOK!!!
+    for (let key in data) { // letでなくconstでもOK
       // 取得したdata属性が「data-tex」で始まらない場合は無視して次のループへ進む
       if (!key.startsWith("tex")) {
         continue;
