@@ -1,9 +1,9 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, Raycaster, Vector2 } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import meshHoverVertexGlsl from "./glsl/meshHover/vertex.glsl";
-import meshHoverFragmentGlsl from "./glsl/meshHover/fragment.glsl";
+import defaultVertexGlsl from "./glsl/default/vertex.glsl";
+import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
 import GUI from "lil-gui";
 
 // デバッグモードにしたい場合は引数を1にする。
@@ -20,10 +20,6 @@ let material = null;
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
 
-// RayCast導入
-const raycaster = new Raycaster();
-const pointer = new Vector2();
-
 init();
 async function init() {
   // 画像・動画読み込み
@@ -39,8 +35,8 @@ async function init() {
 
   // レンダラーの設定
   world.renderer.setSize(canvasRect.width, canvasRect.height, false);
-  // world.renderer.setPixelRatio(window.devicePixelRatio);
-  world.renderer.setPixelRatio(1); // iMacのsafariでスクロールがガタつくため1に落としてみた
+  world.renderer.setPixelRatio(window.devicePixelRatio);
+  // world.renderer.setPixelRatio(1); // iMacのsafariでスクロールがガタつく
   world.renderer.setClearColor(0x000000, 0);
 
   // シーン、カメラの作成
@@ -49,9 +45,6 @@ async function init() {
 
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
-
-  // // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
-  // gsap.registerPlugin(ScrollTrigger);
 
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
@@ -68,15 +61,14 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "meshHover") {
+    if(dataWebgl == "default"){
       material = new ShaderMaterial({
-        vertexShader: meshHoverVertexGlsl,
-        fragmentShader: meshHoverFragmentGlsl,
+        vertexShader: defaultVertexGlsl,
+        fragmentShader: defaultFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
-          uTick: { value: 0 },
-          uOpacity: { value: 1.0 }
+          uTick: {value: 0}
         },
         transparent: true,
         alphaTest: 0.5
@@ -95,23 +87,11 @@ async function init() {
       const gui = new GUI();
       // ON,OFFを切り替えるためのオブジェクト（初期値off）
       const isActive = { value: false };
-      // const folder1 = gui.addFolder("画像切り替え");
-      const folder2 = gui.addFolder("OrbitControls");
-
-      // // [folder1] 画像切り替え。0.0～1.0までの範囲で0.1刻みで動かせるようにする
-      // folder1.add(material.uniforms.uProgress, "value", 0.0, 1.0, 0.1).name('mixの割合').listen();
-      // const mix_check_box_data = {mixCheckBoxVal: Boolean(material.uniforms.uProgress.value)};
-      // folder1.add(mix_check_box_data, "mixCheckBoxVal").name('mixの割合（checkbox）').onChange(() => {
-      //   gsap.to(material.uniforms.uProgress, {
-      //     value: Number(mix_check_box_data.mixCheckBoxVal),
-      //     duration: 1.0,
-      //     ease: "none"
-      //   });
-      // });
-
-      // [folder2] OrbitControlsのチェックボックス
+      const folder1 = gui.addFolder("OrbitControls");
+    
+      // [folder1] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
-      folder2.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
+      folder1.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
         if (isActive.value) {
           _attachOrbitControl();
           // Axisの表示もついでにここでする
@@ -158,9 +138,6 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
-  // initInview()相当の処理（ここから）-------------------
-  // initInview()相当の処理（ここまで）-------------------
-
   render();
   function render() {
     requestAnimationFrame(render);
@@ -174,70 +151,11 @@ async function init() {
       mesh_obj.material.uniforms.uTick.value++;
     }
 
-    // RayCast処理
-    raycast();
-
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
   }
 }
-
-// lerp関数
-function lerp(start, end, rate) {
-  // console.log(`${start}\t\t${end}`);
-  let current = (1.0 - rate) * start + rate * end;
-  // 差分が小さくなったら終点の値を設定
-  if(Math.abs(end - current) < 0.001) {
-    current = end;
-  }
-  return current;
-}
-
-// RayCast処理
-function onPointerMove(event) {
-  // calculate pointer position in normalized device coordinates
-  // (-1 to +1) for both components
-  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-}
-
-function raycast() {
-  // update the picking ray with the camera and pointer position
-  raycaster.setFromCamera(pointer, world.camera);
-
-  // rayが交差した順（手前から）でintersects[]に入る
-  const intersects = raycaster.intersectObjects(world.scene.children);
-  // 現時点でのマウスカーソルのrayと交差するメッシュを取得
-  const current_intersect = intersects[0];
-
-  // ループ回数はメッシュの個数に直す（ここでは3回）
-  for (let i = 0; i < world.scene.children.length; i++) {
-    // 変数名が長いので_meshに入れているだけ
-    const _mesh = world.scene.children[i];
-
-    // helperのAxisなど、uniform変数がそもそもない場合はエラーになるため即抜けるようにする
-    if(!_mesh.material?.uniforms) continue;
-
-    // 変数名が長いので_uOpacityに入れているだけ
-    const _uOpacity = _mesh.material.uniforms.uOpacity;
-
-    if (current_intersect?.object === _mesh) {
-      // hoverしていればuOpacityのゴール地点を0.5にする
-      _uOpacity.endValue = 0.5;
-    }
-    else {
-      // hoverしていなかったらuOpacityのゴール地点を1.0にする
-      _uOpacity.endValue = 1.0;
-    }
-
-    // 始点：現状の.value、終点：上記で設定した.endValue
-    // ※raycast()の中なのでlerp()は毎フレームコールされる
-    _uOpacity.value = lerp(_uOpacity.value, _uOpacity.endValue, 0.05);
-  }
-}
-
-window.addEventListener('pointermove', onPointerMove);
 
 // メッシュ座標を更新し続ける関数
 function updateMeshPosition(mesh_obj) {
@@ -256,7 +174,6 @@ function updateMeshPosition(mesh_obj) {
 function getWorldPosition(dom, canvas) {
   const x = (dom.left + dom.width / 2) - (canvas.width / 2);
   const y = -(dom.top + dom.height / 2) + (canvas.height / 2);
-  // 戻り値がオブジェクト
   return { x, y };
 }
 

@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,22 +13,19 @@
       outline: 2px #0f0 solid;
       opacity: 0.0;
     }
-    .photo {
+
+    .photo,
+    .video {
       max-width: 512px;
       aspect-ratio: 512 / 256;
       margin-inline: auto;
     }
+
     .caption {
       text-align: center;
       font-size: 13px;
       margin-top: 10px;
       margin-bottom: 150px;
-    }
-    a {
-      display: block;
-      max-width: 512px;
-      aspect-ratio: 512 / 256;
-      margin-inline: auto;
     }
   </style>
 </head>
@@ -36,24 +34,22 @@
   <header>header</header>
   <div style="margin-top: 100vh;"></div>
 
-  <a href="https://www.asahi.com/national/">
-    <div class="photo" data-webgl="meshHover" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
-  </a>
-  <div class="caption">一つ目の画像です。</div>
+  <div class="photo" data-webgl="default" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
+  <div class="caption">一つ目の画像です</div>
 
-  <a href="https://www.asahi.com/business/">
-    <div class="photo" data-webgl="meshHover" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
-  </a>
-  <div class="caption">二つ目の画像です。</div>
+  <div class="photo" data-webgl="default" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
+  <div class="caption">二つ目の画像です</div>
 
-  <a href="https://www.asahi.com/politics/">
-    <div class="photo" data-webgl="meshHover" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
-  </a>
-  <div class="caption">三つ目の画像です。</div>
+  <div class="photo" data-webgl="default" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+  <div class="caption">三つ目の画像です</div>
+
+  <div class="video" data-webgl="default" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
+  <div class="caption">動画です</div>
 
   <canvas id="canvas"></canvas>
 
   <div style="margin-top: 100vh;"></div>
   <footer>footer</footer>
 </body>
+
 </html>
