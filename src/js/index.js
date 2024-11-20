@@ -1,10 +1,47 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, Raycaster, Vector2 } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, Vector4, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import directionalPlaneVertexGlsl from "./glsl/directionalPlane/vertex.glsl";
-import directionalPlaneFragmentGlsl from "./glsl/directionalPlane/fragment.glsl";
+import switchTexVertexGlsl from "./glsl/switchTex/vertex.glsl";
+import switchTexFragmentGlsl from "./glsl/switchTex/fragment.glsl";
+import distortTexVertexGlsl from "./glsl/distortTex/vertex.glsl";
+import distortTexFragmentGlsl from "./glsl/distortTex/fragment.glsl";
+import defaultVertexGlsl from "./glsl/default/vertex.glsl";
+import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
 import GUI from "lil-gui";
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { getGPUTier } from 'detect-gpu';
+
+// GPUが低性能だったらフラグを立てる
+let isLowPerformance = false;
+
+// checkGpuPerformance()が非同期関数のため結果を待ってからinit()をコール
+checkGpuPerformance().then((result) => {
+  isLowPerformance = result;
+  init(); // ここに移動してくる
+});
+
+async function checkGpuPerformance() {
+  const gpuTier = await getGPUTier();
+  console.log(`---- GPUTier ----`);
+  console.log(gpuTier);
+
+  // GPUTierが2以上かつ50fps以上でハイパフォーマンスと見なす
+  let _isHighPerformanceMode = (gpuTier.tier >= 2 && gpuTier.fps >= 50.0);
+
+  if (_isHighPerformanceMode) {
+    console.log("GPU: HighPerformance");
+    alert("通常モード：\ntier:" + gpuTier.tier + ", fps:" + gpuTier.fps);
+    return false;
+  }
+  else {
+    console.log("GPU: LowPerformance");
+    alert("低パフォーマンスモード：\ntier:" + gpuTier.tier + ", fps:" + gpuTier.fps);
+    return true;
+  }
+}
+
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -20,11 +57,7 @@ let material = null;
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
 
-// RayCast導入
-const raycaster = new Raycaster();
-const pointer = new Vector2();
-
-init();
+// init(); // checkGpuPerformance()のコールバックに移動
 async function init() {
   // 画像・動画読み込み
   await loader.loadAllAssets();
@@ -40,7 +73,6 @@ async function init() {
   // レンダラーの設定
   world.renderer.setSize(canvasRect.width, canvasRect.height, false);
   world.renderer.setPixelRatio(window.devicePixelRatio);
-  // world.renderer.setPixelRatio(1); // iMacのsafariでスクロールがガタつく
   world.renderer.setClearColor(0x000000, 0);
 
   // シーン、カメラの作成
@@ -50,6 +82,8 @@ async function init() {
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
 
+  // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
+  gsap.registerPlugin(ScrollTrigger);
 
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
@@ -66,16 +100,29 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "directionalPlane") {
+    // data-webgl属性によってvertexShaderとfragmentShaderを分ける
+    if (dataWebgl == "switchTex") {
       material = new ShaderMaterial({
-        vertexShader: directionalPlaneVertexGlsl,
-        fragmentShader: directionalPlaneFragmentGlsl,
+        vertexShader: switchTexVertexGlsl,
+        fragmentShader: switchTexFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
-          uTick: { value: 0 },
-          uHover: { value: 0.0 }, // 交差したメッシュは1.0にする
-          uMouse: { value: new Vector2(0.5, 0.5) } // 初期値はuv座標の中心
+          uTick: { value: 0 } // こちらでは使わないが仮で追加
+        },
+        transparent: true,
+        alphaTest: 0.5
+      });
+    }
+    else if (dataWebgl == "distortTex") {
+      material = new ShaderMaterial({
+        // 性能が低いときはdefaultエフェクトを設定する
+        vertexShader: isLowPerformance ? defaultVertexGlsl : distortTexVertexGlsl,
+        fragmentShader: isLowPerformance ? defaultFragmentGlsl : distortTexFragmentGlsl,
+        side: DoubleSide,
+        uniforms: {
+          uProgress: { value: 0.0 },
+          uTick: { value: 0 }
         },
         transparent: true,
         alphaTest: 0.5
@@ -95,7 +142,6 @@ async function init() {
       // ON,OFFを切り替えるためのオブジェクト（初期値off）
       const isActive = { value: false };
       const folder1 = gui.addFolder("OrbitControls");
-
       // [folder1] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder1.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -145,6 +191,42 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
+  // initInview()相当の処理（ここから）-------------------
+  // 対象となるメッシュは複数個を想定するためループで回す
+  for (let i = 0; i < obj_array.length; i++) {
+    if (obj_array[i].dataWebgl == "switchTex") {
+      gsap.to(obj_array[i].material.uniforms.uProgress, {
+        value: 1.0, // 遷移後の値
+        duration: 1.0,
+        ease: "none",
+        scrollTrigger: {
+          trigger: obj_array[i].$.el,
+          start: "center 60%",
+          toggleActions: "play reverse play reverse",
+          markers: true  // デバッグ用にマーカーを表示
+        }
+      });
+    }
+    else if (obj_array[i].dataWebgl == "distortTex") {
+      gsap.to(obj_array[i].material.uniforms.uProgress, {
+        value: 1.0, // 遷移後の値
+        duration: 0.3,
+        ease: "none",
+        scrollTrigger: {
+          trigger: obj_array[i].$.el,
+          start: "center 60%",
+          onEnter: () => {
+            // 要素が画面に入ったときに実行する処理
+            console.log("distortTexが発火しました");
+          },
+          toggleActions: "play reverse play reverse",
+          markers: true  // デバッグ用にマーカーを表示
+        }
+      });
+    }
+  }
+  // initInview()相当の処理（ここまで）-------------------
+
   render();
   function render() {
     requestAnimationFrame(render);
@@ -156,81 +238,13 @@ async function init() {
       updateMeshPosition(mesh_obj);
       // uTickインクリメントはobj_array[]のループ内で
       mesh_obj.material.uniforms.uTick.value++;
-      // uHoverのフラグが立っていたらそのメッシュのみ回転
-      if (mesh_obj.material.uniforms.uHover.value) {
-        // マウスの上下方向（y軸方向）の動きはx軸周りに回転
-        mesh_obj.mesh.rotation.x = -(mesh_obj.material.uniforms.uMouse.value.y - 0.5) * 0.4;
-        // マウスの左右方向（x軸方向）の動きはy軸周りに回転
-        mesh_obj.mesh.rotation.y = (mesh_obj.material.uniforms.uMouse.value.x - 0.5) * 0.4;
-      }
-      else {
-        // uHoverフラグがfalseになったら回転量を「滑らかに」0.0に戻す
-        mesh_obj.mesh.rotation.x = lerp(mesh_obj.mesh.rotation.x, 0.0, 0.1);
-        mesh_obj.mesh.rotation.y = lerp(mesh_obj.mesh.rotation.y, 0.0, 0.1);
-      }
     }
-
-    // RayCast処理
-    raycast();
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
   }
 }
-
-// lerp関数
-function lerp(start, end, rate) {
-  let current = (1.0 - rate) * start + rate * end;
-  // 差分が小さくなったら終点の値を設定
-  if (Math.abs(end - current) < 0.001) {
-    current = end;
-  }
-  return current;
-}
-
-// RayCast処理
-function onPointerMove(event) {
-  // calculate pointer position in normalized device coordinates
-  // (-1 to +1) for both components
-  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-}
-
-function raycast() {
-  // update the picking ray with the camera and pointer position
-  raycaster.setFromCamera(pointer, world.camera);
-
-  // rayが交差した順（手前から）でintersects[]に入る
-  const intersects = raycaster.intersectObjects(world.scene.children);
-  // 現時点でのマウスカーソルのrayと交差するメッシュを取得
-  const current_intersect = intersects[0];
-
-  // ループ回数はメッシュの個数に直す（ここでは3回）
-  for (let i = 0; i < world.scene.children.length; i++) {
-    // 変数名が長いので_meshに入れているだけ
-    const _mesh = world.scene.children[i];
-
-    // helperのAxisなど、uniform変数がそもそもない場合はエラーになるため即抜けるようにする
-    if (!_mesh.material?.uniforms) continue;
-
-    // 変数名が長いので_uOpacityに入れているだけ
-    const _uOpacity = _mesh.material.uniforms.uOpacity
-
-    if (current_intersect?.object === _mesh) {
-      // 交差したメッシュはuHoverを真にする
-      _mesh.material.uniforms.uHover.value = 1.0;
-      // 該当メッシュのuv座標を渡す
-      _mesh.material.uniforms.uMouse.value = current_intersect.uv;
-    }
-    else {
-      // 交差していないメッシュはuHoverを偽に戻す
-      _mesh.material.uniforms.uHover.value = 0.0;
-    }
-  }
-}
-
-window.addEventListener('pointermove', onPointerMove);
 
 // メッシュ座標を更新し続ける関数
 function updateMeshPosition(mesh_obj) {
@@ -249,6 +263,7 @@ function updateMeshPosition(mesh_obj) {
 function getWorldPosition(dom, canvas) {
   const x = (dom.left + dom.width / 2) - (canvas.width / 2);
   const y = -(dom.top + dom.height / 2) + (canvas.height / 2);
+  // 戻り値がオブジェクト
   return { x, y };
 }
 

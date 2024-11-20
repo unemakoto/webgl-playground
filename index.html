@@ -20,6 +20,16 @@
       aspect-ratio: 512 / 256;
       margin-inline: auto;
     }
+    
+    #alice {
+      width: 251px;
+      height: 61px;
+      margin-inline: auto;
+      opacity: 1.0; /* opacityは1にしておかないとダメ */
+      color: transparent;
+      font-size: 87px;
+      line-height: 0.8;
+    }
 
     .caption {
       text-align: center;
@@ -43,17 +53,14 @@
 
   <div style="margin-top: 100vh;"></div>
 
-  <div class="photo" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
+  <div class="photo" data-webgl="switchTex" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg" data-tex2="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
   <div class="caption">一つ目の画像です</div>
 
-  <div class="photo" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
+  <div id="alice" data-webgl="distortTex" data-tex1="%VITE_HTML_PATH%/images/text/alice.png">ALICE</div>
+  <div class="caption">テキストです<br>（端末性能が低いとエフェクトを外す）</div>
+
+  <div class="photo" data-webgl="switchTex" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg" data-tex2="%VITE_HTML_PATH%/images/slider_4.jpg"></div>
   <div class="caption">二つ目の画像です</div>
-
-  <div class="photo" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
-  <div class="caption">三つ目の画像です</div>
-
-  <div class="video" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
-  <div class="caption">動画です</div>
 
   <canvas id="canvas"></canvas>
 

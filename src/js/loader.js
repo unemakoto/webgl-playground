@@ -54,8 +54,8 @@ async function loadAllAssets() {
 
 async function loadImg(url) {
   const tex = await texLoader.loadAsync(url);
-  tex.wrapS = MirroredRepeatWrapping; //テクスチャがない部分の指定（u方向）
-  tex.wrapT = MirroredRepeatWrapping; //テクスチャがない部分の指定（v方向）
+  // tex.wrapS = MirroredRepeatWrapping; //テクスチャがない部分の指定（u方向）
+  // tex.wrapT = MirroredRepeatWrapping; //テクスチャがない部分の指定（v方向）
   // 拡大縮小時の補間方法を指定
   tex.magFilter = LinearFilter;
   tex.minFilter = LinearFilter;
@@ -69,8 +69,8 @@ async function loadVideo(url) {
     const video = document.createElement('video');
     video.oncanplay = () => {
       const tex = new VideoTexture(video);
-      tex.wrapS = MirroredRepeatWrapping; //テクスチャがない部分の指定（u方向）
-      tex.wrapT = MirroredRepeatWrapping; //テクスチャがない部分の指定（v方向）
+      // tex.wrapS = MirroredRepeatWrapping; //テクスチャがない部分の指定（u方向）
+      // tex.wrapT = MirroredRepeatWrapping; //テクスチャがない部分の指定（v方向）
       // 拡大縮小時の補間方法を指定
       tex.magFilter = LinearFilter;
       tex.minFilter = LinearFilter;
