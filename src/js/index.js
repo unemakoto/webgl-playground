@@ -2,8 +2,8 @@ import "../css/style.css";
 import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import switchTexVertexGlsl from "./glsl/switchTex/vertex.glsl";
-import switchTexFragmentGlsl from "./glsl/switchTex/fragment.glsl";
+import distortTexVertexGlsl from "./glsl/distortTex/vertex.glsl";
+import distortTexFragmentGlsl from "./glsl/distortTex/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -66,10 +66,10 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if(dataWebgl == "switchTex"){
+    if(dataWebgl == "distortTex"){
       material = new ShaderMaterial({
-        vertexShader: switchTexVertexGlsl,
-        fragmentShader: switchTexFragmentGlsl,
+        vertexShader: distortTexVertexGlsl,
+        fragmentShader: distortTexFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
@@ -276,3 +276,18 @@ function _attachStatsJs() {
   });
 }
 // stats.jsのハンドラ関数（ここまで）-----------------------
+
+// // scrollTriggerの初期化処理
+// function initInview(){
+//   gsap.registerPlugin(ScrollTrigger);
+//   const elements = document.querySelectorAll('[data-webgl]'); 
+//   elements.forEach(el => {
+//     gsap.to(el, {
+//       x: 100,
+//       scrollTrigger: {
+//         trigger: el,
+//         start: "center 60%"
+//       }
+//     });
+//   });
+// }
