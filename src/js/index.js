@@ -2,8 +2,8 @@ import "../css/style.css";
 import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, Raycaster, Vector2 } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import meshHoverVertexGlsl from "./glsl/meshHover/vertex.glsl";
-import meshHoverFragmentGlsl from "./glsl/meshHover/fragment.glsl";
+import directionalPlaneVertexGlsl from "./glsl/directionalPlane/vertex.glsl";
+import directionalPlaneFragmentGlsl from "./glsl/directionalPlane/fragment.glsl";
 import GUI from "lil-gui";
 
 // デバッグモードにしたい場合は引数を1にする。
@@ -66,15 +66,16 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "meshHover") {
+    if (dataWebgl == "directionalPlane") {
       material = new ShaderMaterial({
-        vertexShader: meshHoverVertexGlsl,
-        fragmentShader: meshHoverFragmentGlsl,
+        vertexShader: directionalPlaneVertexGlsl,
+        fragmentShader: directionalPlaneFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
           uTick: { value: 0 },
-          uOpacity: { value: 1.0 }
+          uHover: { value: 0.0 }, // 交差したメッシュは1.0にする
+          uMouse: { value: new Vector2(0.5, 0.5) } // 初期値はuv座標の中心
         },
         transparent: true,
         alphaTest: 0.5
@@ -155,6 +156,18 @@ async function init() {
       updateMeshPosition(mesh_obj);
       // uTickインクリメントはobj_array[]のループ内で
       mesh_obj.material.uniforms.uTick.value++;
+      // uHoverのフラグが立っていたらそのメッシュのみ回転
+      if (mesh_obj.material.uniforms.uHover.value) {
+        // マウスの上下方向（y軸方向）の動きはx軸周りに回転
+        mesh_obj.mesh.rotation.x = -(mesh_obj.material.uniforms.uMouse.value.y - 0.5) * 0.4;
+        // マウスの左右方向（x軸方向）の動きはy軸周りに回転
+        mesh_obj.mesh.rotation.y = (mesh_obj.material.uniforms.uMouse.value.x - 0.5) * 0.4;
+      }
+      else {
+        // uHoverフラグがfalseになったら回転量を「滑らかに」0.0に戻す
+        mesh_obj.mesh.rotation.x = lerp(mesh_obj.mesh.rotation.x, 0.0, 0.1);
+        mesh_obj.mesh.rotation.y = lerp(mesh_obj.mesh.rotation.y, 0.0, 0.1);
+      }
     }
 
     // RayCast処理
@@ -168,7 +181,6 @@ async function init() {
 
 // lerp関数
 function lerp(start, end, rate) {
-  // console.log(`${start}\t\t${end}`);
   let current = (1.0 - rate) * start + rate * end;
   // 差分が小さくなったら終点の値を設定
   if (Math.abs(end - current) < 0.001) {
@@ -206,17 +218,15 @@ function raycast() {
     const _uOpacity = _mesh.material.uniforms.uOpacity
 
     if (current_intersect?.object === _mesh) {
-      // hoverしていればuOpacityのゴール地点を0.5にする
-      _uOpacity.endValue = 0.5;
+      // 交差したメッシュはuHoverを真にする
+      _mesh.material.uniforms.uHover.value = 1.0;
+      // 該当メッシュのuv座標を渡す
+      _mesh.material.uniforms.uMouse.value = current_intersect.uv;
     }
     else {
-      // hoverしていなかったらuOpacityのゴール地点を1.0にする
-      _uOpacity.endValue = 1.0;
+      // 交差していないメッシュはuHoverを偽に戻す
+      _mesh.material.uniforms.uHover.value = 0.0;
     }
-
-    // 始点：現状の.value、終点：上記で設定した.endValue
-    // ※raycast()の中なのでlerp()は毎フレームコールされる
-    _uOpacity.value = lerp(_uOpacity.value, _uOpacity.endValue, 0.05);
   }
 }
 
