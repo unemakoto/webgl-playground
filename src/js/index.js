@@ -2,9 +2,11 @@ import "../css/style.css";
 import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import defaultVertexGlsl from "./glsl/default/vertex.glsl";
-import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
+import switchTexVertexGlsl from "./glsl/switchTex/vertex.glsl";
+import switchTexFragmentGlsl from "./glsl/switchTex/fragment.glsl";
 import GUI from "lil-gui";
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -46,6 +48,9 @@ async function init() {
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
 
+  // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
+  gsap.registerPlugin(ScrollTrigger);
+
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
   const prms = [...elements].map(async (el) => {
@@ -61,10 +66,10 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if(dataWebgl == "default"){
+    if(dataWebgl == "switchTex"){
       material = new ShaderMaterial({
-        vertexShader: defaultVertexGlsl,
-        fragmentShader: defaultFragmentGlsl,
+        vertexShader: switchTexVertexGlsl,
+        fragmentShader: switchTexFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
@@ -137,6 +142,23 @@ async function init() {
 
   // prms[]を並列で待つ
   await Promise.all(prms);
+
+  // initInview()相当の処理（ここから）---------
+  // 対象となるメッシュは複数個を想定するためループで回す
+  for (let i = 0; i < obj_array.length; i++) {
+    gsap.to(obj_array[i].material.uniforms.uProgress, {
+      value: 1.0, // 遷移後の値
+      duration: 0.5,
+      ease: "none",
+      scrollTrigger: {
+        trigger: obj_array[i].$.el,
+        start: "center 60%",
+        toggleActions: "play reverse play reverse",
+        markers: true  // デバッグ用にマーカーを表示
+      }
+    });
+  }
+  // initInview()相当の処理（ここまで）---------
 
   render();
   function render() {
