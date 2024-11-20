@@ -1,9 +1,9 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, Raycaster, Vector2 } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import directionalPlaneVertexGlsl from "./glsl/directionalPlane/vertex.glsl";
-import directionalPlaneFragmentGlsl from "./glsl/directionalPlane/fragment.glsl";
+import defaultVertexGlsl from "./glsl/default/vertex.glsl";
+import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
 import GUI from "lil-gui";
 
 // デバッグモードにしたい場合は引数を1にする。
@@ -19,10 +19,6 @@ let material = null;
 
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
-
-// RayCast導入
-const raycaster = new Raycaster();
-const pointer = new Vector2();
 
 init();
 async function init() {
@@ -50,7 +46,6 @@ async function init() {
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
 
-
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
   const prms = [...elements].map(async (el) => {
@@ -66,16 +61,14 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "directionalPlane") {
+    if(dataWebgl == "default"){
       material = new ShaderMaterial({
-        vertexShader: directionalPlaneVertexGlsl,
-        fragmentShader: directionalPlaneFragmentGlsl,
+        vertexShader: defaultVertexGlsl,
+        fragmentShader: defaultFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
-          uTick: { value: 0 },
-          uHover: { value: 0.0 }, // 交差したメッシュは1.0にする
-          uMouse: { value: new Vector2(0.5, 0.5) } // 初期値はuv座標の中心
+          uTick: {value: 0}
         },
         transparent: true,
         alphaTest: 0.5
@@ -95,7 +88,7 @@ async function init() {
       // ON,OFFを切り替えるためのオブジェクト（初期値off）
       const isActive = { value: false };
       const folder1 = gui.addFolder("OrbitControls");
-
+    
       // [folder1] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder1.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -156,81 +149,13 @@ async function init() {
       updateMeshPosition(mesh_obj);
       // uTickインクリメントはobj_array[]のループ内で
       mesh_obj.material.uniforms.uTick.value++;
-      // uHoverのフラグが立っていたらそのメッシュのみ回転
-      if (mesh_obj.material.uniforms.uHover.value) {
-        // マウスの上下方向（y軸方向）の動きはx軸周りに回転
-        mesh_obj.mesh.rotation.x = -(mesh_obj.material.uniforms.uMouse.value.y - 0.5) * 0.4;
-        // マウスの左右方向（x軸方向）の動きはy軸周りに回転
-        mesh_obj.mesh.rotation.y = (mesh_obj.material.uniforms.uMouse.value.x - 0.5) * 0.4;
-      }
-      else {
-        // uHoverフラグがfalseになったら回転量を「滑らかに」0.0に戻す
-        mesh_obj.mesh.rotation.x = lerp(mesh_obj.mesh.rotation.x, 0.0, 0.1);
-        mesh_obj.mesh.rotation.y = lerp(mesh_obj.mesh.rotation.y, 0.0, 0.1);
-      }
     }
-
-    // RayCast処理
-    raycast();
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
   }
 }
-
-// lerp関数
-function lerp(start, end, rate) {
-  let current = (1.0 - rate) * start + rate * end;
-  // 差分が小さくなったら終点の値を設定
-  if (Math.abs(end - current) < 0.001) {
-    current = end;
-  }
-  return current;
-}
-
-// RayCast処理
-function onPointerMove(event) {
-  // calculate pointer position in normalized device coordinates
-  // (-1 to +1) for both components
-  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-  pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
-}
-
-function raycast() {
-  // update the picking ray with the camera and pointer position
-  raycaster.setFromCamera(pointer, world.camera);
-
-  // rayが交差した順（手前から）でintersects[]に入る
-  const intersects = raycaster.intersectObjects(world.scene.children);
-  // 現時点でのマウスカーソルのrayと交差するメッシュを取得
-  const current_intersect = intersects[0];
-
-  // ループ回数はメッシュの個数に直す（ここでは3回）
-  for (let i = 0; i < world.scene.children.length; i++) {
-    // 変数名が長いので_meshに入れているだけ
-    const _mesh = world.scene.children[i];
-
-    // helperのAxisなど、uniform変数がそもそもない場合はエラーになるため即抜けるようにする
-    if (!_mesh.material?.uniforms) continue;
-
-    // 変数名が長いので_uOpacityに入れているだけ
-    const _uOpacity = _mesh.material.uniforms.uOpacity
-
-    if (current_intersect?.object === _mesh) {
-      // 交差したメッシュはuHoverを真にする
-      _mesh.material.uniforms.uHover.value = 1.0;
-      // 該当メッシュのuv座標を渡す
-      _mesh.material.uniforms.uMouse.value = current_intersect.uv;
-    }
-    else {
-      // 交差していないメッシュはuHoverを偽に戻す
-      _mesh.material.uniforms.uHover.value = 0.0;
-    }
-  }
-}
-
-window.addEventListener('pointermove', onPointerMove);
 
 // メッシュ座標を更新し続ける関数
 function updateMeshPosition(mesh_obj) {

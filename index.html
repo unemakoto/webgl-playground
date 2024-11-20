@@ -10,7 +10,7 @@
   <script type="module" src="/src/js/index.js"></script>
   <style>
     [data-webgl] {
-      /* outline: 2px #0f0 solid; */
+      outline: 2px #0f0 solid;
       opacity: 0.0;
     }
 
@@ -25,7 +25,7 @@
       text-align: center;
       font-size: 13px;
       margin-top: 10px;
-      margin-bottom: 200px;
+      margin-bottom: 150px;
     }
   </style>
 </head>
@@ -40,19 +40,18 @@
     ↓<br>
     ↓
   </div>
-
   <div style="margin-top: 100vh;"></div>
 
-  <div class="photo" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
+  <div class="photo" data-webgl="default" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
   <div class="caption">一つ目の画像です</div>
 
-  <div class="photo" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
+  <div class="photo" data-webgl="default" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
   <div class="caption">二つ目の画像です</div>
 
-  <div class="photo" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+  <div class="photo" data-webgl="default" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
   <div class="caption">三つ目の画像です</div>
 
-  <div class="video" data-webgl="directionalPlane" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
+  <div class="video" data-webgl="default" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
   <div class="caption">動画です</div>
 
   <canvas id="canvas"></canvas>
