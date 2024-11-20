@@ -2,11 +2,9 @@ import "../css/style.css";
 import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import distortTexVertexGlsl from "./glsl/distortTex/vertex.glsl";
-import distortTexFragmentGlsl from "./glsl/distortTex/fragment.glsl";
+import rgbShiftVertexGlsl from "./glsl/rgbShift/vertex.glsl";
+import rgbShiftFragmentGlsl from "./glsl/rgbShift/fragment.glsl";
 import GUI from "lil-gui";
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -48,8 +46,6 @@ async function init() {
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
 
-  // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
-  gsap.registerPlugin(ScrollTrigger);
 
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
@@ -66,14 +62,15 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if(dataWebgl == "distortTex"){
+    if (dataWebgl == "rgbShift") {
       material = new ShaderMaterial({
-        vertexShader: distortTexVertexGlsl,
-        fragmentShader: distortTexFragmentGlsl,
+        vertexShader: rgbShiftVertexGlsl,
+        fragmentShader: rgbShiftFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
-          uTick: {value: 0}
+          uTick: { value: 0 },
+          uScrollOffset: { value: 0 }
         },
         transparent: true,
         alphaTest: 0.5
@@ -93,7 +90,7 @@ async function init() {
       // ON,OFFを切り替えるためのオブジェクト（初期値off）
       const isActive = { value: false };
       const folder1 = gui.addFolder("OrbitControls");
-    
+
       // [folder1] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder1.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -143,23 +140,6 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
-  // initInview()相当の処理（ここから）---------
-  // 対象となるメッシュは複数個を想定するためループで回す
-  for (let i = 0; i < obj_array.length; i++) {
-    gsap.to(obj_array[i].material.uniforms.uProgress, {
-      value: 1.0, // 遷移後の値
-      duration: 0.5,
-      ease: "none",
-      scrollTrigger: {
-        trigger: obj_array[i].$.el,
-        start: "center 60%",
-        toggleActions: "play reverse play reverse",
-        markers: true  // デバッグ用にマーカーを表示
-      }
-    });
-  }
-  // initInview()相当の処理（ここまで）---------
-
   render();
   function render() {
     requestAnimationFrame(render);
@@ -170,14 +150,42 @@ async function init() {
       const mesh_obj = obj_array[i];
       updateMeshPosition(mesh_obj);
       // uTickインクリメントはobj_array[]のループ内で
-      mesh_obj.material.uniforms.uTick.value++;
+      // mesh_obj.material.uniforms.uTick.value++;
+      mesh_obj.material.uniforms.uScrollOffset.value = scrollOffset; // uScrollOffsetを更新
     }
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
+
+    // スクロールに遅延して慣性アニメーションさせる
+    updateScrollAnime();
   }
 }
+
+// スクロール遅延して慣性アニメーション（ここから）----------
+let targetScrollY = 0; // 本来のスクロール位置
+let currentScrollY = 0; // 線形補間を適用した現在のスクロール位置
+let scrollOffset = 0; // 上記2つの差分
+
+// Lerp関数本体（rateは0.1とか小さい値にすること）
+function lerp(start, end, rate){
+  let current = (1.0 - rate) * start + rate * end;
+  // 差分が小さくなったら終点の値を設定（処理量削減）
+  if(Math.abs(end - current) < 0.001) {
+    current = end;
+  }
+  return current;
+}
+
+function updateScrollAnime(){
+  // スクロール位置を取得
+  targetScrollY = document.documentElement.scrollTop;
+  // スクロール量を線形補間で求める（αは0.1）
+  currentScrollY = lerp(currentScrollY, targetScrollY, 0.1);
+  scrollOffset = targetScrollY - currentScrollY;
+}
+// スクロール遅延して慣性アニメーション（ここまで）----------
 
 // メッシュ座標を更新し続ける関数
 function updateMeshPosition(mesh_obj) {
@@ -276,18 +284,3 @@ function _attachStatsJs() {
   });
 }
 // stats.jsのハンドラ関数（ここまで）-----------------------
-
-// // scrollTriggerの初期化処理
-// function initInview(){
-//   gsap.registerPlugin(ScrollTrigger);
-//   const elements = document.querySelectorAll('[data-webgl]'); 
-//   elements.forEach(el => {
-//     gsap.to(el, {
-//       x: 100,
-//       scrollTrigger: {
-//         trigger: el,
-//         start: "center 60%"
-//       }
-//     });
-//   });
-// }

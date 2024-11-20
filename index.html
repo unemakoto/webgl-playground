@@ -21,21 +21,11 @@
       margin-inline: auto;
     }
 
-    #alice {
-      max-width: 251px;
-      aspect-ratio: 251 / 61;
-      margin-inline: auto;
-      opacity: 1.0; /* 必須 */
-      color: transparent;
-      font-size: 87px;
-      line-height: 0.8;
-    }
-
     .caption {
       text-align: center;
       font-size: 13px;
       margin-top: 10px;
-      margin-bottom: 300px;
+      margin-bottom: 200px;
     }
   </style>
 </head>
@@ -53,16 +43,16 @@
 
   <div style="margin-top: 100vh;"></div>
 
-  <div class="photo" data-webgl="distortTex" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
+  <div class="photo" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
   <div class="caption">一つ目の画像です</div>
 
-  <div class="photo" data-webgl="distortTex" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
+  <div class="photo" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
   <div class="caption">二つ目の画像です</div>
 
-  <div id="alice" data-webgl="distortTex" data-tex1="%VITE_HTML_PATH%/images/text/alice.png">ALICE</div>
-  <div class="caption">テキストです</div>
+  <div class="photo" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+  <div class="caption">三つ目の画像です</div>
 
-  <div class="video" data-webgl="distortTex" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
+  <div class="video" data-webgl="rgbShift" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
   <div class="caption">動画です</div>
 
   <canvas id="canvas"></canvas>
