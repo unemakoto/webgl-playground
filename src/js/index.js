@@ -1,9 +1,9 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, SphereGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import grayScaleVertexGlsl from "./glsl/grayScale/vertex.glsl";
-import grayScaleFragmentGlsl from "./glsl/grayScale/fragment.glsl";
+import planeSphereVertexGlsl from "./glsl/planeSphere/vertex.glsl";
+import planeSphereFragmentGlsl from "./glsl/planeSphere/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -59,17 +59,37 @@ async function init() {
     const texes = await loader.getTexByElement(el); // 先にコール
     const rect = el.getBoundingClientRect(); // awaitの後で実行
 
-    // メッシュは相棒DOMと同じサイズを指定
-    const geometry = new PlaneGeometry(rect.width, rect.height);
+    // 球と平面で分割数を合わせること
+    const wSeg = rect.width / 10;
+    const hSeg = rect.height / 10;
+    const radius = rect.width / 10;
+    const sphere_geometry = new SphereGeometry(radius, wSeg, hSeg);
+    const plane_geometry = new PlaneGeometry(rect.width, rect.height, wSeg, hSeg);
+
+    // u=0.5の位置が変形後に中央に来るように直す（-90度回転しておく）
+    sphere_geometry.rotateY(Math.PI * (-1 / 2));
+    // 画像の中心が動かないように半径分ずらす
+    sphere_geometry.translate(0, 0, -radius);
+
+    // 「position」に初期状態（ここではplane）を設定しておく（three.js仕様？）
+    plane_geometry.setAttribute('position', plane_geometry.getAttribute('position'));
+    // 「uv」に初期状態（ここではplane）を設定しておく
+    // （ここでは頂点の遅延をvertex.glslで設定しているため初期状態のuvも設定しておかないとダメだった）
+    plane_geometry.setAttribute('uv', plane_geometry.getAttribute('uv'));
+
+    // 初期ジオメトリとして平面のジオメトリを設定
+    plane_geometry.setAttribute('initGeometry', plane_geometry.getAttribute('position'));
+    // 最終ジオメトリとして球体のジオメトリを設定
+    plane_geometry.setAttribute('finalGeometry', sphere_geometry.getAttribute('position'));
 
     // data-webglの属性値を取得
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "grayScale") {
+    if (dataWebgl == "planeSphere") {
       material = new ShaderMaterial({
-        vertexShader: grayScaleVertexGlsl,
-        fragmentShader: grayScaleFragmentGlsl,
+        vertexShader: planeSphereVertexGlsl,
+        fragmentShader: planeSphereFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
@@ -117,7 +137,7 @@ async function init() {
     }
     // stats.js（ここまで）-----------------------
 
-    const mesh = new Mesh(geometry, material);
+    const mesh = new Mesh(plane_geometry, material);
     world.scene.add(mesh);
     // メッシュ位置を相棒DOMの座標に合わせる
     const { x, y } = getWorldPosition(rect, canvasRect);
@@ -127,7 +147,7 @@ async function init() {
     // 取得したメッシュ情報をオブジェクトにまとめておく
     const obj = {
       mesh,
-      geometry,
+      plane_geometry,
       material,
       rect,
       $: { el },
@@ -230,7 +250,7 @@ function bindResizeEvents() {
 }
 
 function resizeMesh(mesh_obj, newCanvasRect) {
-  const { $: { el }, mesh, geometry, rect } = mesh_obj;
+  const { $: { el }, mesh, plane_geometry, rect } = mesh_obj;
   const newRect = el.getBoundingClientRect();
   // DOMと同じ座標にする
   const { x, y } = getWorldPosition(newRect, newCanvasRect);
@@ -238,7 +258,7 @@ function resizeMesh(mesh_obj, newCanvasRect) {
   mesh.position.y = y;
 
   // メッシュのサイズも変更する
-  geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
+  plane_geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
   // mesh_obj.rectをリサイズ後の値で更新しておく
   mesh_obj.rect = newRect;
 }
