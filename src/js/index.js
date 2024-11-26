@@ -71,11 +71,20 @@ async function init() {
     // 画像の中心が動かないように半径分ずらす
     sphere_geometry.translate(0, 0, -radius);
 
+    // 【注意】--------------------------------------
+    // 初期状態は球体にしたいのだが、ここでは
+    //   ・初期ジオメトリ：plane_geometry
+    //   ・最終ジオメトリ：sphere_geometry
+    // としている。これは球体から平面に変形するとなぜか変形後にテクスチャの端が欠けてしまうため。
+    // これを回避するためJS側では初期ジオメトリを平面、最終ジオメトリを球体とする。
+    // この状態を反転させるため、vertex.glslのmix()で引数を逆で指定している。
+    //     mix(finalGeometry, initGeometry, progress)
+    // ---------------------------------------------
+
     // 「position」に初期状態（ここではplane）を設定しておく（three.js仕様？）
     plane_geometry.setAttribute('position', plane_geometry.getAttribute('position'));
-    // 「uv」に初期状態（ここではplane）を設定しておく
-    // （ここでは頂点の遅延をvertex.glslで設定しているため初期状態のuvも設定しておかないとダメだった）
-    plane_geometry.setAttribute('uv', plane_geometry.getAttribute('uv'));
+    // 「uv」に初期状態（ここではplane）を設定しておく（vertex.glslでの遅延処理を消したので以下は不要か）
+    // plane_geometry.setAttribute('uv', plane_geometry.getAttribute('uv'));
 
     // 初期ジオメトリとして平面のジオメトリを設定
     plane_geometry.setAttribute('initGeometry', plane_geometry.getAttribute('position'));
