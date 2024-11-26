@@ -2,8 +2,8 @@ import "../css/style.css";
 import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import switchTexVertexGlsl from "./glsl/switchTex/vertex.glsl";
-import switchTexFragmentGlsl from "./glsl/switchTex/fragment.glsl";
+import grayScaleVertexGlsl from "./glsl/grayScale/vertex.glsl";
+import grayScaleFragmentGlsl from "./glsl/grayScale/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -66,10 +66,10 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "switchTex") {
+    if (dataWebgl == "grayScale") {
       material = new ShaderMaterial({
-        vertexShader: switchTexVertexGlsl,
-        fragmentShader: switchTexFragmentGlsl,
+        vertexShader: grayScaleVertexGlsl,
+        fragmentShader: grayScaleFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
