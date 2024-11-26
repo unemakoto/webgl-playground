@@ -153,7 +153,8 @@ async function init() {
       scrollTrigger: {
         trigger: obj_array[i].$.el,
         start: "center 60%",
-        toggleActions: "play reverse play reverse",
+        // toggleActions: "play reverse play reverse",
+        toggleActions: "play pause pause reverse",
         markers: true  // デバッグ用にマーカーを表示
       }
     });
