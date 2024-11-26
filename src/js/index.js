@@ -1,47 +1,12 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, Vector4, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
 import switchTexVertexGlsl from "./glsl/switchTex/vertex.glsl";
 import switchTexFragmentGlsl from "./glsl/switchTex/fragment.glsl";
-import distortTexVertexGlsl from "./glsl/distortTex/vertex.glsl";
-import distortTexFragmentGlsl from "./glsl/distortTex/fragment.glsl";
-import defaultVertexGlsl from "./glsl/default/vertex.glsl";
-import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { getGPUTier } from 'detect-gpu';
-
-// GPUが低性能だったらフラグを立てる
-let isLowPerformance = false;
-
-// checkGpuPerformance()が非同期関数のため結果を待ってからinit()をコール
-checkGpuPerformance().then((result) => {
-  isLowPerformance = result;
-  init(); // ここに移動してくる
-});
-
-async function checkGpuPerformance() {
-  const gpuTier = await getGPUTier();
-  console.log(`---- GPUTier ----`);
-  console.log(gpuTier);
-
-  // GPUTierが2以上かつ50fps以上でハイパフォーマンスと見なす
-  let _isHighPerformanceMode = (gpuTier.tier >= 2 && gpuTier.fps >= 50.0);
-
-  if (_isHighPerformanceMode) {
-    console.log("GPU: HighPerformance");
-    alert("通常モード：\ntier:" + gpuTier.tier + ", fps:" + gpuTier.fps);
-    return false;
-  }
-  else {
-    console.log("GPU: LowPerformance");
-    alert("低パフォーマンスモード：\ntier:" + gpuTier.tier + ", fps:" + gpuTier.fps);
-    return true;
-  }
-}
-
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -57,7 +22,7 @@ let material = null;
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
 
-// init(); // checkGpuPerformance()のコールバックに移動
+init();
 async function init() {
   // 画像・動画読み込み
   await loader.loadAllAssets();
@@ -73,6 +38,7 @@ async function init() {
   // レンダラーの設定
   world.renderer.setSize(canvasRect.width, canvasRect.height, false);
   world.renderer.setPixelRatio(window.devicePixelRatio);
+  // world.renderer.setPixelRatio(1); // iMacのsafariでスクロールがガタつく
   world.renderer.setClearColor(0x000000, 0);
 
   // シーン、カメラの作成
@@ -100,25 +66,10 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    // data-webgl属性によってvertexShaderとfragmentShaderを分ける
     if (dataWebgl == "switchTex") {
       material = new ShaderMaterial({
         vertexShader: switchTexVertexGlsl,
         fragmentShader: switchTexFragmentGlsl,
-        side: DoubleSide,
-        uniforms: {
-          uProgress: { value: 0.0 },
-          uTick: { value: 0 } // こちらでは使わないが仮で追加
-        },
-        transparent: true,
-        alphaTest: 0.5
-      });
-    }
-    else if (dataWebgl == "distortTex") {
-      material = new ShaderMaterial({
-        // 性能が低いときはdefaultエフェクトを設定する
-        vertexShader: isLowPerformance ? defaultVertexGlsl : distortTexVertexGlsl,
-        fragmentShader: isLowPerformance ? defaultFragmentGlsl : distortTexFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
@@ -142,6 +93,7 @@ async function init() {
       // ON,OFFを切り替えるためのオブジェクト（初期値off）
       const isActive = { value: false };
       const folder1 = gui.addFolder("OrbitControls");
+
       // [folder1] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder1.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -191,41 +143,22 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
-  // initInview()相当の処理（ここから）-------------------
+  // initInview()相当の処理（ここから）---------
   // 対象となるメッシュは複数個を想定するためループで回す
   for (let i = 0; i < obj_array.length; i++) {
-    if (obj_array[i].dataWebgl == "switchTex") {
-      gsap.to(obj_array[i].material.uniforms.uProgress, {
-        value: 1.0, // 遷移後の値
-        duration: 1.0,
-        ease: "none",
-        scrollTrigger: {
-          trigger: obj_array[i].$.el,
-          start: "center 60%",
-          toggleActions: "play reverse play reverse",
-          markers: true  // デバッグ用にマーカーを表示
-        }
-      });
-    }
-    else if (obj_array[i].dataWebgl == "distortTex") {
-      gsap.to(obj_array[i].material.uniforms.uProgress, {
-        value: 1.0, // 遷移後の値
-        duration: 0.3,
-        ease: "none",
-        scrollTrigger: {
-          trigger: obj_array[i].$.el,
-          start: "center 60%",
-          onEnter: () => {
-            // 要素が画面に入ったときに実行する処理
-            console.log("distortTexが発火しました");
-          },
-          toggleActions: "play reverse play reverse",
-          markers: true  // デバッグ用にマーカーを表示
-        }
-      });
-    }
+    gsap.to(obj_array[i].material.uniforms.uProgress, {
+      value: 1.0, // 遷移後の値
+      duration: 0.5,
+      ease: "none",
+      scrollTrigger: {
+        trigger: obj_array[i].$.el,
+        start: "center 60%",
+        toggleActions: "play reverse play reverse",
+        markers: true  // デバッグ用にマーカーを表示
+      }
+    });
   }
-  // initInview()相当の処理（ここまで）-------------------
+  // initInview()相当の処理（ここまで）---------
 
   render();
   function render() {
@@ -263,7 +196,6 @@ function updateMeshPosition(mesh_obj) {
 function getWorldPosition(dom, canvas) {
   const x = (dom.left + dom.width / 2) - (canvas.width / 2);
   const y = -(dom.top + dom.height / 2) + (canvas.height / 2);
-  // 戻り値がオブジェクト
   return { x, y };
 }
 
