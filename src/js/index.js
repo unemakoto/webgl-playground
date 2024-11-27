@@ -148,7 +148,7 @@ async function init() {
   for (let i = 0; i < obj_array.length; i++) {
     gsap.to(obj_array[i].material.uniforms.uProgress, {
       value: 1.0, // 遷移後の値
-      duration: 0.5,
+      duration: 1.5,
       // ease: "none",
       ease: "expoScale(0.5,7,none)",
       scrollTrigger: {
