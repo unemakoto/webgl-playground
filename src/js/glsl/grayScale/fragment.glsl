@@ -17,6 +17,6 @@ void main() {
   vec4 t1 = texture2D(uTex1, vUv);
   vec4 grayT1 = grayscale(t1);
   // vec4 color = mix(grayT1, t1, uProgress); // 左右アニメーションなし
-  vec4 color = mix(grayT1, t1, step(uProgress, vUv.x));
+  vec4 color = mix(t1, grayT1, step(uProgress, vUv.x));
   gl_FragColor = color;
 }

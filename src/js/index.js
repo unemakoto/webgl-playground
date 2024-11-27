@@ -1,9 +1,9 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, SphereGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import planeSphereVertexGlsl from "./glsl/planeSphere/vertex.glsl";
-import planeSphereFragmentGlsl from "./glsl/planeSphere/fragment.glsl";
+import grayScaleVertexGlsl from "./glsl/grayScale/vertex.glsl";
+import grayScaleFragmentGlsl from "./glsl/grayScale/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -59,46 +59,17 @@ async function init() {
     const texes = await loader.getTexByElement(el); // 先にコール
     const rect = el.getBoundingClientRect(); // awaitの後で実行
 
-    // 球と平面で分割数を合わせること
-    const wSeg = rect.width / 10;
-    const hSeg = rect.height / 10;
-    const radius = rect.width / 10;
-    const sphere_geometry = new SphereGeometry(radius, wSeg, hSeg);
-    const plane_geometry = new PlaneGeometry(rect.width, rect.height, wSeg, hSeg);
-
-    // u=0.5の位置が変形後に中央に来るように直す（-90度回転しておく）
-    sphere_geometry.rotateY(Math.PI * (-1 / 2));
-    // 画像の中心が動かないように半径分ずらす
-    sphere_geometry.translate(0, 0, -radius);
-
-    // 【注意】--------------------------------------
-    // 初期状態は球体にしたいのだが、ここでは
-    //   ・初期ジオメトリ：plane_geometry
-    //   ・最終ジオメトリ：sphere_geometry
-    // としている。これは球体から平面に変形するとなぜか変形後にテクスチャの端が欠けてしまうため。
-    // これを回避するためJS側では初期ジオメトリを平面、最終ジオメトリを球体とする。
-    // この状態を反転させるため、vertex.glslのmix()で引数を逆で指定している。
-    //     mix(finalGeometry, initGeometry, progress)
-    // ---------------------------------------------
-
-    // 「position」に初期状態（ここではplane）を設定しておく（three.js仕様？）
-    plane_geometry.setAttribute('position', plane_geometry.getAttribute('position'));
-    // 「uv」に初期状態（ここではplane）を設定しておく（vertex.glslでの遅延処理を消したので以下は不要か）
-    // plane_geometry.setAttribute('uv', plane_geometry.getAttribute('uv'));
-
-    // 初期ジオメトリとして平面のジオメトリを設定
-    plane_geometry.setAttribute('initGeometry', plane_geometry.getAttribute('position'));
-    // 最終ジオメトリとして球体のジオメトリを設定
-    plane_geometry.setAttribute('finalGeometry', sphere_geometry.getAttribute('position'));
+    // メッシュは相棒DOMと同じサイズを指定
+    const geometry = new PlaneGeometry(rect.width, rect.height);
 
     // data-webglの属性値を取得
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "planeSphere") {
+    if (dataWebgl == "grayScale") {
       material = new ShaderMaterial({
-        vertexShader: planeSphereVertexGlsl,
-        fragmentShader: planeSphereFragmentGlsl,
+        vertexShader: grayScaleVertexGlsl,
+        fragmentShader: grayScaleFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
@@ -146,7 +117,7 @@ async function init() {
     }
     // stats.js（ここまで）-----------------------
 
-    const mesh = new Mesh(plane_geometry, material);
+    const mesh = new Mesh(geometry, material);
     world.scene.add(mesh);
     // メッシュ位置を相棒DOMの座標に合わせる
     const { x, y } = getWorldPosition(rect, canvasRect);
@@ -156,7 +127,7 @@ async function init() {
     // 取得したメッシュ情報をオブジェクトにまとめておく
     const obj = {
       mesh,
-      plane_geometry,
+      geometry,
       material,
       rect,
       $: { el },
@@ -178,7 +149,8 @@ async function init() {
     gsap.to(obj_array[i].material.uniforms.uProgress, {
       value: 1.0, // 遷移後の値
       duration: 0.5,
-      ease: "none",
+      // ease: "none",
+      ease: "expoScale(0.5,7,none)",
       scrollTrigger: {
         trigger: obj_array[i].$.el,
         start: "center 60%",
@@ -259,7 +231,7 @@ function bindResizeEvents() {
 }
 
 function resizeMesh(mesh_obj, newCanvasRect) {
-  const { $: { el }, mesh, plane_geometry, rect } = mesh_obj;
+  const { $: { el }, mesh, geometry, rect } = mesh_obj;
   const newRect = el.getBoundingClientRect();
   // DOMと同じ座標にする
   const { x, y } = getWorldPosition(newRect, newCanvasRect);
@@ -267,7 +239,7 @@ function resizeMesh(mesh_obj, newCanvasRect) {
   mesh.position.y = y;
 
   // メッシュのサイズも変更する
-  plane_geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
+  geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
   // mesh_obj.rectをリサイズ後の値で更新しておく
   mesh_obj.rect = newRect;
 }
