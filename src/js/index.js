@@ -1,9 +1,9 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Points, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import grayScaleVertexGlsl from "./glsl/grayScale/vertex.glsl";
-import grayScaleFragmentGlsl from "./glsl/grayScale/fragment.glsl";
+import planeParticleVertexGlsl from "./glsl/planeParticle/vertex.glsl";
+import planeParticleFragmentGlsl from "./glsl/planeParticle/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -59,17 +59,25 @@ async function init() {
     const texes = await loader.getTexByElement(el); // 先にコール
     const rect = el.getBoundingClientRect(); // awaitの後で実行
 
-    // メッシュは相棒DOMと同じサイズを指定
-    const geometry = new PlaneGeometry(rect.width, rect.height);
+
+    // 512x256に分割（1x1単位）
+    const wSeg = rect.width;
+    const hSeg = rect.height;
+    // 負荷が気になる場合は分割数を下げて2x2単位とかに（512x256の画像を256x128に分割）
+    // const wSeg = rect.width / 2;
+    // const hSeg = rect.height / 2;
+
+    // Planeに分割数を指定
+    const geometry = new PlaneGeometry(rect.width, rect.height, wSeg, hSeg);
 
     // data-webglの属性値を取得
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "grayScale") {
+    if (dataWebgl == "planeParticle") {
       material = new ShaderMaterial({
-        vertexShader: grayScaleVertexGlsl,
-        fragmentShader: grayScaleFragmentGlsl,
+        vertexShader: planeParticleVertexGlsl,
+        fragmentShader: planeParticleFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
@@ -117,7 +125,7 @@ async function init() {
     }
     // stats.js（ここまで）-----------------------
 
-    const mesh = new Mesh(geometry, material);
+    const mesh = new Points(geometry, material);
     world.scene.add(mesh);
     // メッシュ位置を相棒DOMの座標に合わせる
     const { x, y } = getWorldPosition(rect, canvasRect);
@@ -148,7 +156,7 @@ async function init() {
   for (let i = 0; i < obj_array.length; i++) {
     gsap.to(obj_array[i].material.uniforms.uProgress, {
       value: 1.0, // 遷移後の値
-      duration: 1.5,
+      duration: 2.0,
       // ease: "none",
       ease: "expoScale(0.5,7,none)",
       scrollTrigger: {
