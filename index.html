@@ -14,18 +14,55 @@
       opacity: 0.0;
     }
 
-    .photo,
-    .video {
+    /* 円柱スライダー */
+    .sliderWrap {
+      width: 100%;
+    }
+
+    .sliderMain {
       max-width: 512px;
       aspect-ratio: 512 / 256;
       margin-inline: auto;
     }
 
-    .caption {
-      text-align: center;
-      font-size: 13px;
-      margin-top: 10px;
-      margin-bottom: 300px;
+    /* button reset */
+    button {
+      background-color: transparent;
+      border: none;
+      cursor: pointer;
+      outline: none;
+      padding: 0;
+      appearance: none;
+    }
+
+    .sliderBtn {
+      margin-inline: auto;
+      width: 150px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .sliderBtn button {
+      width: 50px;
+      display: block;
+      border-radius: 50%;
+      margin-top: 100px;
+    }
+
+    .sliderBtn button:hover {
+      opacity: 0.7;
+    }
+
+    .sliderBtn--prev {
+      transform: rotate(180deg);
+    }
+
+    .sliderCaption {
+      max-width: 400px;
+      margin-inline: auto;
+      margin-top: 20px;
+      margin-top: 100px;
+      margin-bottom: 50px;
     }
   </style>
 </head>
@@ -43,14 +80,24 @@
 
   <div style="margin-top: 100vh;"></div>
 
-  <div class="photo" data-webgl="planeParticle" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg" data-tex2="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
-  <div class="caption">一つ目の画像です</div>
+  <div class="sliderWrap">
+    <div class="sliderMain" 
+      data-webgl="cylinderSlide" 
+      data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4" 
+      data-tex2="%VITE_HTML_PATH%/images/slider_1.jpg" 
+      data-tex3="%VITE_HTML_PATH%/videos/beach.mp4" 
+      data-tex4="%VITE_HTML_PATH%/images/slider_2.jpg" 
+      data-tex5="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+  </div>
 
-  <div class="photo" data-webgl="planeParticle" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg" data-tex2="%VITE_HTML_PATH%/images/slider_4.jpg"></div>
-  <div class="caption">二つ目の画像です</div>
-
-  <div class="video" data-webgl="planeParticle" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4" data-tex2="%VITE_HTML_PATH%/videos/beach.mp4"></div>
-  <div class="caption">動画です</div>
+  <div class="sliderBtn">
+    <button class="sliderBtn sliderBtn--prev">
+      <img src="%VITE_HTML_PATH%/images/slider_btn.png" alt="前へ">
+    </button>
+    <button class="sliderBtn sliderBtn--next">
+      <img src="%VITE_HTML_PATH%/images/slider_btn.png" alt="次へ">
+    </button>
+  </div>
 
   <canvas id="canvas"></canvas>
 
