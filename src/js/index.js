@@ -153,9 +153,9 @@ async function init() {
     let idx = 0;
 
     // 不要か？？
-    texes.forEach((tex) => {
-      idx++;
-    });
+    // texes.forEach((tex) => {
+    //   idx++;
+    // });
 
     const mesh = new Mesh(geometry, material);
     mesh.rotation.y = 0.4; // radian
