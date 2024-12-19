@@ -1,12 +1,12 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, CylinderGeometry, MeshBasicMaterial, ShaderMaterial, Mesh, AxesHelper, DoubleSide, Vector3, VideoTexture } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, VideoTexture } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
 import utils from "./utils";
-import cylinderSlideVertexGlsl from "./glsl/cylinderSlide/vertex.glsl";
-import cylinderSlideFragmentGlsl from "./glsl/cylinderSlide/fragment.glsl";
+import stickySlideVertexGlsl from "./glsl/stickySlide/vertex.glsl";
+import stickySlideFragmentGlsl from "./glsl/stickySlide/fragment.glsl";
 import GUI from "lil-gui";
-import { mountNavBtnHandler } from "./slide-handler";
+import { mountNavBtnHandler, mountCaptionBtnHandler, mountScrollHandler } from "./slide-handler";
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -17,8 +17,9 @@ function enableDebugMode(debug) {
 
 const world = {};
 const obj_array = [];// objが入る配列
-let plane_material = null;
+let material = null;
 let slide_array = []; // 外に出した
+let texes = []; // 外に出した
 
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
@@ -51,53 +52,38 @@ async function init() {
   // // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
   // gsap.registerPlugin(ScrollTrigger);
 
-  // 円柱の回転軸を定義
-  // 回転軸はy軸（クオータニオンなのでnormalize()で正規化する）
-  const rotateAxis = new Vector3(0.0, 1.0, 0.0).normalize();
   const state = { activeSlideIdx: 0 }; // 参照渡しに変更するためオブジェクト化
-  let diffRad = 0.0;
-
-  // 外で定義する
-  let cylinder_mesh = null;
 
   // 左右ボタンclickハンドラー（activeSlideIdxを参照渡しにするためstateを渡す）
-  mountNavBtnHandler(".sliderMain", ".sliderBtn--prev", ".sliderBtn--next", state, goTo);
+  // mountNavBtnHandler(".sliderMain", ".sliderBtn--prev", ".sliderBtn--next", state, goTo);
+  // mountCaptionBtnHandler(".sliderMain", ".sliderBtn--prev", ".sliderBtn--next", state, goTo, ".sliderCaption > ul");
+  // ScrollTrigger処理が入ったハンドラ
+  mountScrollHandler( ".sliderWrap", goTo, ".sliderCaption > ul");
+
 
   const elements = document.querySelectorAll('[data-webgl]');
+  // .forEach()から.map()に書き換え
   const prms = [...elements].map(async (el) => {
     // テクスチャ画像読み込み
     // 引数でdata属性を渡すとその連想配列を返す関数
-    const texes = await loader.getTexByElement(el); // 先にコール
+    texes = await loader.getTexByElement(el); // 先にコール
     const rect = el.getBoundingClientRect(); // awaitの後で実行
 
-    // 円柱の半径
-    const radius = rect.width;
-
-    // 分割数は100に
-    const cylinder_geometry = new CylinderGeometry(radius, radius, rect.height, 100, 1, true);
-
-    // 円柱はMeshBasicMaterial()で表示（これにテクスチャは設定しないため）
-    const cylinder_material = new MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.0,
-      alphaTest: 0.5
-      //wireframe: true,
-      //color: 0xff0000
-    });
+    // メッシュは相棒DOMと同じサイズを指定
+    const geometry = new PlaneGeometry(rect.width * texes.size, rect.height, 1, 1);
 
     // data-webglの属性値を取得
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "cylinderSlide") {
-      plane_material = new ShaderMaterial({
-        vertexShader: cylinderSlideVertexGlsl,
-        fragmentShader: cylinderSlideFragmentGlsl,
+    if (dataWebgl == "stickySlide") {
+      material = new ShaderMaterial({
+        vertexShader: stickySlideVertexGlsl,
+        fragmentShader: stickySlideFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
           uTick: { value: 0 },
-          uRadius: { value: radius }, // 円柱の半径
           uSlideIdx : {value: 0}, // スライドのindex番号(0～4)
           uActiveSlideIdx : {value: state.activeSlideIdx}, // 現時点で正面にあるスライドのindex番号
           uSlideTotal : {value: texes.size} // スライドの合計枚数
@@ -107,12 +93,11 @@ async function init() {
       });
     }
 
-    // ここではuTex1しか使わないので以下が不要になる。
-    // // 複数のテクスチャ画像をuniform変数に設定
-    // texes.forEach((tex, key) => {
-    //   // keyにはuTex1,uTex2などが入る
-    //   return plane_material.uniforms[key] = { value: tex };
-    // });
+    // 複数のテクスチャ画像をuniform変数に設定
+    texes.forEach((tex, key) => {
+      // keyにはuTex1,uTex2などが入る
+      return material.uniforms[key] = { value: tex };
+    });
 
     // lil-gui（ここから）-----------------------
     if (window.debug) {
@@ -165,92 +150,28 @@ async function init() {
     }
     // stats.js（ここまで）-----------------------
 
-    cylinder_mesh = new Mesh(cylinder_geometry, cylinder_material);
-
-    // cylinder_meshを奥方向にずらす（カメラに近すぎて大きく投影されるため）
-    cylinder_mesh.position.z = -radius;
-
-    // 円筒メッシュの頂点属性を確認
-    // console.log(cylinder_geometry.attributes);
-
-    // 円筒メッシュの頂点属性のpositionを分割代入で取得し、cylinder_posに設定。
-    // 同様に法線もcylinder_normalに設定。
-    const { position: cylinder_pos, normal: cylinder_normal } = cylinder_geometry.attributes;
-    // 2が余分なので引いておく
-    const CYLINDER_VERTEX_NUM = cylinder_geometry.attributes.position.count - 2; //200
-
-    // 一周の頂点数はtopかbottomのどちらかだけの合計でいい
-    const CYLINDER_VERTEX_ONE_LOOP = CYLINDER_VERTEX_NUM / 2.0; // 100
-
-    // plane一枚にアサインできる頂点数を計算（除算なので整数値で返す）
-    const step = Math.floor(CYLINDER_VERTEX_ONE_LOOP / texes.size); // 画像の枚数「5」で割る
     let idx = 0;
 
-    // 複数のテクスチャ画像を読み込むためループで回す
+    // 不要か？？
     texes.forEach((tex) => {
-      // 各平面のメッシュを作成していく
-      // テクスチャのShaderMaterialをクローンする（マテリアルは5つとも異なる）
-      const planeMate = plane_material.clone();
-
-      // テクスチャ画像をそのまま表示するのでtex1のみ設定でよい
-      planeMate.uniforms.uTex1 = { value: tex };
-
-      // 各平面にindex番号を設定（0～4）
-      planeMate.uniforms.uSlideIdx.value = idx;
-      // 各平面に正面の平面がどれなのかを知らせる
-      // （参照渡しにすることでclone()した全てのplaneのuActiveSlideIdxが一括で更新可能に（render()内））
-      planeMate.uniforms.uActiveSlideIdx = plane_material.uniforms.uActiveSlideIdx;
-
-      // console.log(planeMate.uniforms);
-
-      // 平面の横方向の分割数だけ50に上げておく
-      const planeGeo = new PlaneGeometry(rect.width, rect.height, 50, 1);
-      // 平面のメッシュを生成
-      const plane = new Mesh(planeGeo, planeMate);
-
-      // slide_arrayに追加する前にplane_materialを設定
-      plane.plane_material = planeMate; // 各スライドにplane_materialを直接設定
-
-      // 円柱メッシュのどこの頂点なのかを指定
-      const pickIdx = idx * step; // index*24
-      // 円柱メッシュの各頂点の座標を取得してplaneの座標として設定（y座標は不要）
-      plane.position.x = cylinder_pos.getX(pickIdx);
-      plane.position.z = cylinder_pos.getZ(pickIdx);
-
-      // 各平面の向きを円筒の法線方向にする
-      // 元の向きはz軸方向
-      const originalDir = { x: 0, y: 0, z: 1 };
-      // 変更後の向きは円柱の「各pickIdxの頂点」の法線方向 
-      const targetDir = { x: cylinder_normal.getX(pickIdx), y: 0, z: cylinder_normal.getZ(pickIdx) };
-      utils.pointTo(plane, originalDir, targetDir);
-
-      // planeを引数にするため中に移動
-      // slide_array = [...cylinder_mesh.children];
-      slide_array.push(plane); // slide_arrayに直接追加
-
-      // この平面のメッシュを円筒のメッシュに追加する
-      cylinder_mesh.add(plane);
-
-      // 動画だったら一時停止にしておく
-      tex.source.data.pause?.();
-
       idx++;
     });
 
-    // // 平面メッシュを配列slide_array[]に入れておく（枚数を数えるため）
-    // slide_array = [...cylinder_mesh.children];
+    const mesh = new Mesh(geometry, material);
+    mesh.rotation.y = 0.4; // radian
+    mesh.position.z = -300; // スクロールでずれる
+    world.scene.add(mesh);
 
-    world.scene.add(cylinder_mesh);
     // メッシュ位置を相棒DOMの座標に合わせる
     const { x, y } = getWorldPosition(rect, canvasRect);
-    cylinder_mesh.position.x = x;
-    cylinder_mesh.position.y = y;
+    mesh.position.x = x;
+    mesh.position.y = y;
 
     // 取得したメッシュ情報をオブジェクトにまとめておく（ここでは円柱一つだけか）
     const obj = {
-      cylinder_mesh,
-      cylinder_geometry,
-      plane_material,
+      mesh,
+      geometry,
+      material,
       rect,
       $: { el },
       dataWebgl
@@ -269,17 +190,7 @@ async function init() {
   // initInview()相当の処理（ここまで）-------------------
 
   // 左右ボタン処理（ここから）-------------------
-  // 引数で指定した画像が正面になるように円柱を回転させる
   function goTo(idx) {
-    // 回転させる量を0.0～1.0で導出
-    // activeSlideIdx：現時点で正面にあるスライドのidx
-    // slide_array.lengthはスライドの合計枚数
-    const diff_rate = (idx - state.activeSlideIdx) / slide_array.length;
-
-    // diffRad：回転させる量（値域：0.0～1.0の値に2πをかけて0～2πの値に）
-    // （これで戻り値がラジアンになる）
-    diffRad -= diff_rate * 2 * Math.PI;
-
     // 動画再生の指示（画像であってもコールする）
     playVideo(idx);
 
@@ -287,6 +198,14 @@ async function init() {
     state.activeSlideIdx = idx;
   }
   // 左右ボタン処理（ここまで）-------------------
+
+  // 初期状態で全動画を一時停止しておく
+  texes.forEach((tex) => {
+    // 初期状態で動画が見えないときがあるため少し待ってからpause()を実行
+    setTimeout(() => {
+      tex.source.data.pause?.();
+    }, 50);
+  });
 
   render();
   function render() {
@@ -298,29 +217,18 @@ async function init() {
       const mesh_obj = obj_array[i];
       updateMeshPosition(mesh_obj);
       // uTickインクリメントはobj_array[]のループ内で
-      mesh_obj.plane_material.uniforms.uTick.value++;
+      mesh_obj.material.uniforms.uTick.value++;
     }
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
 
-    // 円柱の回転処理（diffRadが0.0は回転不要）
-    if(diffRad){
-      // lerp()でアニメーション化
-      const tmp_diffRad = utils.lerp(diffRad, 0, 0.9, 0.0001) || diffRad;
-      // 回転する量をtmp_diffRadに変更
-      cylinder_mesh.rotateOnWorldAxis(rotateAxis, tmp_diffRad);
-      
-      // 進んだ分を引く
-      diffRad -= tmp_diffRad;
-      // console.log(`${diffRad}`);
-      
-      // plane_material.uniforms.uActiveSlideIdxを更新すると全てのplaneMate.uniforms.uActiveSlideIdxも更新（参照渡しを設定済み）
-      const tmp_activeSlideIdx = plane_material.uniforms.uActiveSlideIdx.value;
-      const idx = utils.lerp(tmp_activeSlideIdx, state.activeSlideIdx, 0.15);
-      plane_material.uniforms.uActiveSlideIdx.value = idx;
-    }
+    // plane_material.uniforms.uActiveSlideIdxを更新すると全てのplaneMate.uniforms.uActiveSlideIdxも更新（オブジェクトの参照渡しを設定済み）
+    const tmp_activeSlideIdx = material.uniforms.uActiveSlideIdx.value;
+    const idx = utils.lerp(tmp_activeSlideIdx, state.activeSlideIdx, 0.1);
+    material.uniforms.uActiveSlideIdx.value = idx;
+    
   }
 }
 
@@ -328,26 +236,28 @@ let playInterval = null;
 let playingVideo = null; // 再生中の動画を設定
 
 function playVideo(idx){
-  console.log(`idx= ${idx}`);
+  // 初期表示でidX=2のものが正面に来るためidxに+2する（5枚のときだけ想定か）
+  const offset = 2;
   // moduloでidxが0～4に
-  const i = idx % slide_array.length;
-  // idxは負になる可能性があるため.at()を使用
-  const slide = slide_array.at(i);
+  const i = (idx + offset) % texes.size;
+  console.log(`active index= ${i}`);
 
-  // テクスチャが画像か動画かの判定
-  const tex1Value = slide.plane_material.uniforms.uTex1.value;
-
+  const uTex_idx = i + 1; //uTex?は1オリジンなので+1する
+  const texValue = material.uniforms["uTex" + uTex_idx].value;
+  // console.log('active slide: ', texValue.source.data);
+  
   // 前回再生した動画を一時停止（初回は値が未設定なので ?.pause() としている）
   playingVideo?.pause();
-  if(tex1Value instanceof VideoTexture){
+
+  // テクスチャが画像か動画かの判定
+  if(texValue instanceof VideoTexture){
     // console.log(`idx:${idx}：動画`);
     // 真になるまで200msec単位で繰り返し判定
     playInterval = setInterval(() => {
       // activeSlideIdxに等しかったら再生
-      // console.log(`${plane_material.uniforms.uActiveSlideIdx.value} : ${idx}`);
-      if(plane_material.uniforms.uActiveSlideIdx.value === idx) {
+      if(material.uniforms.uActiveSlideIdx.value === idx) {
         // 再生指示した動画情報を退避
-        playingVideo = tex1Value.source.data;
+        playingVideo = texValue.source.data;
         // 画像だと.play()が未対応なので.play?.()としておく
         playingVideo.play?.();
         // 再生開始したのでタイマーをクリア
@@ -359,13 +269,13 @@ function playVideo(idx){
 
 // メッシュ座標を更新し続ける関数
 function updateMeshPosition(mesh_obj) {
-  const { $: { el }, cylinder_mesh } = mesh_obj;
+  const { $: { el }, mesh } = mesh_obj;
   // 最新のDOM位置のtopプロパティを別途取得する
   const rect = el.getBoundingClientRect();
   // DOMのrectをワールド座標に変換
   const { x, y } = getWorldPosition(rect, canvasRect);
-  cylinder_mesh.position.x = x;
-  cylinder_mesh.position.y = y;
+  mesh.position.x = x;
+  mesh.position.y = y;
 }
 
 // ワールド座標に変換する関数
@@ -408,15 +318,15 @@ function bindResizeEvents() {
 }
 
 function resizeMesh(mesh_obj, newCanvasRect) {
-  const { $: { el }, cylinder_mesh, cylinder_geometry, rect } = mesh_obj;
+  const { $: { el }, mesh, geometry, rect } = mesh_obj;
   const newRect = el.getBoundingClientRect();
   // DOMと同じ座標にする
   const { x, y } = getWorldPosition(newRect, newCanvasRect);
-  cylinder_mesh.position.x = x;
-  cylinder_mesh.position.y = y;
+  mesh.position.x = x;
+  mesh.position.y = y;
 
   // メッシュのサイズも変更する
-  cylinder_geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
+  geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
   // mesh_obj.rectをリサイズ後の値で更新しておく
   mesh_obj.rect = newRect;
 }

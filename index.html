@@ -14,15 +14,33 @@
       opacity: 0.0;
     }
 
-    /* 円柱スライダー */
+    /* スライダー */
     .sliderWrap {
+      height: 70vh;
+      /* height: 65vh; */
+      display: flex;
+      align-items: start;
+      padding: 4em 1em;
+      text-align: left;
+    }
+
+    .sliderInner {
       width: 100%;
     }
 
-    .sliderMain {
-      max-width: 512px;
-      aspect-ratio: 512 / 256;
+    .sliderHolder {
+      position: relative;
       margin-inline: auto;
+      font-size: 22px;
+      width: 24em;
+      height: 18em;
+      text-align: center;
+      margin-top: 3em;
+    }
+
+    .sliderMain {
+      width: 100%;
+      aspect-ratio: 7 / 4;
     }
 
     /* button reset */
@@ -37,9 +55,11 @@
 
     .sliderBtn {
       margin-inline: auto;
+      margin-top: 100px;
       width: 150px;
       display: flex;
       justify-content: space-between;
+      z-index: 10;
     }
 
     .sliderBtn button {
@@ -57,12 +77,35 @@
       transform: rotate(180deg);
     }
 
+    /* キャプション */
     .sliderCaption {
-      max-width: 400px;
+      position: absolute;
+      right: 50;
+      bottom: 0;
+      /* outline: 3px #f0f solid; */
+      /* height: 100px; */
+      /* width: 50vw; */
+       /* スライドを進めると右にはみ出る */
+      width: 50vw;
       margin-inline: auto;
-      margin-top: 20px;
-      margin-top: 100px;
-      margin-bottom: 50px;
+    }
+
+    .sliderCaption ul {
+      transition: transform 0.5s;
+    }
+
+    .sliderCaption li {
+      list-style-type: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      opacity: 0.0;
+      transition: opacity 0.5s, transform 0.5s;
+    }
+
+    /* 先頭は初期状態で見せる */
+    .sliderCaption li:first-child {
+      opacity: 1.0;
     }
   </style>
 </head>
@@ -82,13 +125,26 @@
 
   <div class="sliderWrap">
     <div class="sliderMain" 
-      data-webgl="cylinderSlide" 
-      data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4" 
-      data-tex2="%VITE_HTML_PATH%/images/slider_1.jpg" 
-      data-tex3="%VITE_HTML_PATH%/videos/beach.mp4" 
-      data-tex4="%VITE_HTML_PATH%/images/slider_2.jpg" 
-      data-tex5="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+      data-webgl="stickySlide" 
+      data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg" 
+      data-tex2="%VITE_HTML_PATH%/images/slider_2.jpg" 
+      data-tex3="%VITE_HTML_PATH%/images/slider_3.jpg" 
+      data-tex4="%VITE_HTML_PATH%/images/slider_4.jpg" 
+      data-tex5="%VITE_HTML_PATH%/videos/turtle.mp4">
+    </div>
+
+    <div class="sliderCaption">
+      <ul>
+        <li><img src="%VITE_HTML_PATH%/images/caption01.png" alt=""></li>
+        <li><img src="%VITE_HTML_PATH%/images/caption02.png" alt=""></li>
+        <li><img src="%VITE_HTML_PATH%/images/caption03.png" alt=""></li>
+        <li><img src="%VITE_HTML_PATH%/images/caption04.png" alt=""></li>
+        <li><img src="%VITE_HTML_PATH%/images/caption05.png" alt=""></li>
+      </ul>
+    </div>
   </div>
+
+
 
   <div class="sliderBtn">
     <button class="sliderBtn sliderBtn--prev">
