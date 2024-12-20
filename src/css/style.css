@@ -96,7 +96,10 @@ button {
   /* height: 100px; */
   /* width: 50vw; */
   /* スライドを進めると右にはみ出る? */
+  overflow: hidden; 
   width: 50vw;
+  min-height: 200px;
+  background-color: #f0f;
   margin-inline: auto;
 }
 
