@@ -18,7 +18,7 @@ function enableDebugMode(debug) {
 const world = {};
 const obj_array = [];// objが入る配列
 let material = null;
-let slide_array = []; // 外に出した
+// let slide_array = []; // 外に出した
 let texes = []; // 外に出した
 
 const canvas = document.querySelector('#canvas');
@@ -48,9 +48,6 @@ async function init() {
 
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
-
-  // // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
-  // gsap.registerPlugin(ScrollTrigger);
 
   const state = { activeSlideIdx: 0 }; // 参照渡しに変更するためオブジェクト化
 
@@ -159,7 +156,7 @@ async function init() {
 
     const mesh = new Mesh(geometry, material);
     mesh.rotation.y = 0.4; // radian
-    mesh.position.z = -300; // スクロールでずれる
+    // mesh.position.z = -300; // スクロールでDOMとずれる
     world.scene.add(mesh);
 
     // メッシュ位置を相棒DOMの座標に合わせる
