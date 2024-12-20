@@ -149,11 +149,6 @@ async function init() {
 
     let idx = 0;
 
-    // 不要か？？
-    // texes.forEach((tex) => {
-    //   idx++;
-    // });
-
     const mesh = new Mesh(geometry, material);
     mesh.rotation.y = 0.4; // radian
     // mesh.position.z = -300; // スクロールでDOMとずれる
@@ -164,7 +159,7 @@ async function init() {
     mesh.position.x = x;
     mesh.position.y = y;
 
-    // 取得したメッシュ情報をオブジェクトにまとめておく（ここでは円柱一つだけか）
+    // 取得したメッシュ情報をオブジェクトにまとめておく
     const obj = {
       mesh,
       geometry,
@@ -174,7 +169,7 @@ async function init() {
       dataWebgl
     };
 
-    obj_array.push(obj); // メッシュ情報を配列に詰める
+    obj_array.push(obj);
 
     // return文を追加（map()なので戻り値が配列に入る）
     return obj;
@@ -182,9 +177,6 @@ async function init() {
 
   // prms[]を並列で待つ
   await Promise.all(prms);
-
-  // initInview()相当の処理（ここから）-------------------
-  // initInview()相当の処理（ここまで）-------------------
 
   // 左右ボタン処理（ここから）-------------------
   function goTo(idx) {
@@ -221,7 +213,7 @@ async function init() {
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
 
-    // plane_material.uniforms.uActiveSlideIdxを更新すると全てのplaneMate.uniforms.uActiveSlideIdxも更新（オブジェクトの参照渡しを設定済み）
+    // オブジェクトの参照渡しを設定済み
     const tmp_activeSlideIdx = material.uniforms.uActiveSlideIdx.value;
     const idx = utils.lerp(tmp_activeSlideIdx, state.activeSlideIdx, 0.1);
     material.uniforms.uActiveSlideIdx.value = idx;

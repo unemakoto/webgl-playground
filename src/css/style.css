@@ -24,7 +24,7 @@ footer {
 
 /* スライダー */
 .sliderWrap {
-  height: 70vh;
+  height: 100vh;
   /* height: 65vh; */
   display: flex;
   align-items: start;
@@ -70,6 +70,7 @@ button {
   display: flex;
   justify-content: space-between;
   z-index: 10;
+  display: none; /* debug用 */
 }
 
 .sliderBtn button {
@@ -92,14 +93,11 @@ button {
   position: absolute;
   right: 30px;
   top: 55vh;
-  /* outline: 3px #f0f solid; */
-  /* height: 100px; */
-  /* width: 50vw; */
   /* スライドを進めると右にはみ出る? */
   overflow: hidden; 
   width: 50vw;
   min-height: 200px;
-  background-color: #f0f;
+  /* background-color: #f0f; */
   margin-inline: auto;
 }
 

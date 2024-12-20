@@ -2,13 +2,14 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 /**
- * 左右ボタンのクリックイベントハンドラーを設定します。
- * @param {string} sliderSelector - スライダー本体のセレクタ
+ * キャプションの切り替えハンドラ（スライド）
+ * @param {string} sliderSelector - スライダー本体のセレクタ（未使用）
  * @param {string} prevBtnSelector - "前" ボタンのセレクタ
  * @param {string} nextBtnSelector - "次" ボタンのセレクタ
  * @param {object} state - activeSlideIdx（参照渡し）
  * @param {function} goTo - 外部の関数（参照渡し）
  */
+
 function mountNavBtnHandler(sliderSelector, prevBtnSelector, nextBtnSelector, state, goTo) {
   const prev_el = document.querySelector(prevBtnSelector);
   const next_el = document.querySelector(nextBtnSelector);
@@ -32,14 +33,15 @@ function mountNavBtnHandler(sliderSelector, prevBtnSelector, nextBtnSelector, st
 }
 
 /**
- * キャプションの切り替えハンドラ
- * @param {string} sliderSelector - スライダー本体のセレクタ
+ * キャプションの切り替えハンドラ（キャプション）
+ * @param {string} sliderSelector - スライダー本体のセレクタ（未使用）
  * @param {string} prevBtnSelector - "前" ボタンのセレクタ
  * @param {string} nextBtnSelector - "次" ボタンのセレクタ
  * @param {object} state - activeSlideIdx（参照渡し）
  * @param {function} goTo - 外部の関数（参照渡し）
  * @param {string} captionUlSelector - ulタグのセレクタ
  */
+
 function mountCaptionBtnHandler(sliderSelector, prevBtnSelector, nextBtnSelector, state, goTo, captionUlSelector) {
   const prev_el = document.querySelector(prevBtnSelector);
   const next_el = document.querySelector(nextBtnSelector);
@@ -93,13 +95,11 @@ function mountCaptionBtnHandler(sliderSelector, prevBtnSelector, nextBtnSelector
 
 /**
  * 画面スクロールハンドラ
- * @param {string} sliderSelector - スライダー本体のセレクタ
- * @param {string} prevBtnSelector - "前" ボタンのセレクタ
- * @param {string} nextBtnSelector - "次" ボタンのセレクタ
- * @param {object} state - activeSlideIdx（参照渡し）
+ * @param {string} triggerSelector - scrollTriggerの対象となるセレクタ
  * @param {function} goTo - 外部の関数（参照渡し）
  * @param {string} captionUlSelector - ulタグのセレクタ
  */
+
 function mountScrollHandler( triggerSelector, goTo, captionUlSelector) {
   const caption_ul_el = document.querySelector(captionUlSelector);
   // console.log(caption_ul_el);
@@ -150,7 +150,6 @@ function mountScrollHandler( triggerSelector, goTo, captionUlSelector) {
       }
     }
   });
-
 }
 
 export { mountNavBtnHandler, mountCaptionBtnHandler, mountScrollHandler };
