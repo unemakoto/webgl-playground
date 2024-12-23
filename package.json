@@ -16,6 +16,7 @@
     "glsl-constants": "^2.0.1",
     "glsl-easings": "^1.0.0",
     "glsl-noise": "^0.0.0",
+    "glsl-rotate": "^2.0.1",
     "gsap": "^3.12.5",
     "lil-gui": "^0.19.2",
     "rollup-plugin-glslify": "^1.3.1",

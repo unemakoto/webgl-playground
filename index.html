@@ -13,6 +13,18 @@
       /* outline: 2px #f00 solid; */
       opacity: 0.0;
     }
+    .photo,
+    .video {
+      max-width: 512px;
+      aspect-ratio: 2 / 1;
+      margin-inline: auto;
+    }
+    .caption {
+      text-align: center;
+      font-size: 13px;
+      margin-top: 10px;
+      margin-bottom: 200px;
+    }
   </style>
 </head>
 
@@ -29,35 +41,14 @@
 
   <div style="margin-top: 100vh;"></div>
 
-  <div class="sliderWrap">
-    <div class="sliderMain" 
-      data-webgl="stickySlide" 
-      data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg" 
-      data-tex2="%VITE_HTML_PATH%/images/slider_2.jpg" 
-      data-tex3="%VITE_HTML_PATH%/images/slider_3.jpg" 
-      data-tex4="%VITE_HTML_PATH%/images/slider_4.jpg" 
-      data-tex5="%VITE_HTML_PATH%/videos/turtle.mp4">
-    </div>
-
-    <div class="sliderCaption">
-      <ul>
-        <li><img src="%VITE_HTML_PATH%/images/caption01.png" alt=""></li>
-        <li><img src="%VITE_HTML_PATH%/images/caption02.png" alt=""></li>
-        <li><img src="%VITE_HTML_PATH%/images/caption03.png" alt=""></li>
-        <li><img src="%VITE_HTML_PATH%/images/caption04.png" alt=""></li>
-        <li><img src="%VITE_HTML_PATH%/images/caption05.png" alt=""></li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="sliderBtn">
-    <button class="sliderBtn sliderBtn--prev">
-      <img src="%VITE_HTML_PATH%/images/slider_btn.png" alt="前へ">
-    </button>
-    <button class="sliderBtn sliderBtn--next">
-      <img src="%VITE_HTML_PATH%/images/slider_btn.png" alt="次へ">
-    </button>
-  </div>
+  <div class="photo" data-webgl="twistPlane" data-tex1="%VITE_HTML_PATH%/images/slider_1.jpg"></div>
+  <div class="caption">1つ目の画像です</div>
+  <div class="photo" data-webgl="twistPlane" data-tex1="%VITE_HTML_PATH%/images/slider_2.jpg"></div>
+  <div class="caption">2つ目の画像です</div>
+  <div class="photo" data-webgl="twistPlane" data-tex1="%VITE_HTML_PATH%/images/slider_3.jpg"></div>
+  <div class="caption">3つ目の画像です</div>
+  <div class="video" data-webgl="twistPlane" data-tex1="%VITE_HTML_PATH%/videos/turtle.mp4"></div>
+  <div class="caption">　動画です</div>
 
   <canvas id="canvas"></canvas>
 

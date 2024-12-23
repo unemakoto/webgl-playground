@@ -1,12 +1,13 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, VideoTexture } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, Vector4, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import utils from "./utils";
-import stickySlideVertexGlsl from "./glsl/stickySlide/vertex.glsl";
-import stickySlideFragmentGlsl from "./glsl/stickySlide/fragment.glsl";
+import twistPlaneVertexGlsl from "./glsl/twistPlane/vertex.glsl";
+import twistPlaneFragmentGlsl from "./glsl/twistPlane/fragment.glsl";
 import GUI from "lil-gui";
-import { mountNavBtnHandler, mountCaptionBtnHandler, mountScrollHandler } from "./slide-handler";
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -17,9 +18,6 @@ function enableDebugMode(debug) {
 
 const world = {};
 const obj_array = [];// objが入る配列
-let material = null;
-// let slide_array = []; // 外に出した
-let texes = []; // 外に出した
 
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
@@ -49,46 +47,31 @@ async function init() {
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
 
-  const state = { activeSlideIdx: 0 }; // 参照渡しに変更するためオブジェクト化
-
-  // 左右ボタンclickハンドラー（activeSlideIdxを参照渡しにするためstateを渡す）
-  // mountNavBtnHandler(".sliderMain", ".sliderBtn--prev", ".sliderBtn--next", state, goTo);
-  // mountCaptionBtnHandler(".sliderMain", ".sliderBtn--prev", ".sliderBtn--next", state, goTo, ".sliderCaption > ul");
-  // ScrollTrigger処理が入ったハンドラ
-  mountScrollHandler( ".sliderWrap", goTo, ".sliderCaption > ul");
-
+  // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
+  gsap.registerPlugin(ScrollTrigger);
 
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
   const prms = [...elements].map(async (el) => {
     // テクスチャ画像読み込み
     // 引数でdata属性を渡すとその連想配列を返す関数
-    texes = await loader.getTexByElement(el); // 先にコール
+    const texes = await loader.getTexByElement(el); // 先にコール
     const rect = el.getBoundingClientRect(); // awaitの後で実行
 
-    // メッシュは相棒DOMと同じサイズを指定
-    const geometry = new PlaneGeometry(rect.width * texes.size, rect.height, 1, 1);
-
-    // data-webglの属性値を取得
-    const dataWebgl = el.getAttribute('data-webgl');
-    console.log(dataWebgl);
-
-    if (dataWebgl == "stickySlide") {
-      material = new ShaderMaterial({
-        vertexShader: stickySlideVertexGlsl,
-        fragmentShader: stickySlideFragmentGlsl,
-        side: DoubleSide,
-        uniforms: {
-          uProgress: { value: 0.0 },
-          uTick: { value: 0 },
-          uSlideIdx : {value: 0}, // スライドのindex番号(0～4)
-          uActiveSlideIdx : {value: state.activeSlideIdx}, // 現時点で正面にあるスライドのindex番号
-          uSlideTotal : {value: texes.size} // スライドの合計枚数
-        },
-        transparent: true,
-        alphaTest: 0.5
-      });
-    }
+    // 平面をぐにゃぐにゃにさせるため30x30ぐらいに分割
+    const geometry = new PlaneGeometry(rect.width, rect.height, 30, 30);
+    // ShaderMaterial()でuniform変数を定義
+    const material = new ShaderMaterial({
+      vertexShader: twistPlaneVertexGlsl,
+      fragmentShader: twistPlaneFragmentGlsl,
+      side: DoubleSide, // 裏面にも同じテクスチャ画像を表示
+      uniforms: {
+        // uTex1: {value: tex},
+        uProgress: { value: 0.0 }
+      },
+      transparent: true,
+      alphaTest: 0.5
+    });
 
     // 複数のテクスチャ画像をuniform変数に設定
     texes.forEach((tex, key) => {
@@ -104,7 +87,6 @@ async function init() {
       const isActive = { value: false };
       // const folder1 = gui.addFolder("画像切り替え");
       const folder2 = gui.addFolder("OrbitControls");
-      const folder3 = gui.addFolder("スライダーのidx");
 
       // // [folder1] 画像切り替え。0.0～1.0までの範囲で0.1刻みで動かせるようにする
       // folder1.add(material.uniforms.uProgress, "value", 0.0, 1.0, 0.1).name('mixの割合').listen();
@@ -116,7 +98,7 @@ async function init() {
       //     ease: "none"
       //   });
       // });
-
+    
       // [folder2] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder2.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -131,13 +113,6 @@ async function init() {
           axesHelper?.dispose();
         }
       });
-
-      // [folder3]円柱の回転処理
-      const sliderIdx = {value: 0};
-      folder3.add(sliderIdx, "value", 0, 12, 1).name("goTo").listen().onChange(() => {
-        // goTo()の中でplayVideo()をコール
-        goTo(sliderIdx.value);
-      });
       // lil-gui（ここまで）-----------------------
     }
 
@@ -147,18 +122,17 @@ async function init() {
     }
     // stats.js（ここまで）-----------------------
 
-    let idx = 0;
-
     const mesh = new Mesh(geometry, material);
-    mesh.rotation.y = 0.4; // radian
-    // mesh.position.z = -300; // スクロールでDOMとずれる
     world.scene.add(mesh);
-
     // メッシュ位置を相棒DOMの座標に合わせる
     const { x, y } = getWorldPosition(rect, canvasRect);
     mesh.position.x = x;
     mesh.position.y = y;
 
+    // data-webglの属性値も取得してobjに設定
+    const dataWebgl = el.getAttribute('data-webgl');
+    console.log(dataWebgl);
+    
     // 取得したメッシュ情報をオブジェクトにまとめておく
     const obj = {
       mesh,
@@ -169,7 +143,7 @@ async function init() {
       dataWebgl
     };
 
-    obj_array.push(obj);
+    obj_array.push(obj); // メッシュ情報を配列に詰める
 
     // return文を追加（map()なので戻り値が配列に入る）
     return obj;
@@ -178,23 +152,29 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
-  // 左右ボタン処理（ここから）-------------------
-  function goTo(idx) {
-    // 動画再生の指示（画像であってもコールする）
-    playVideo(idx);
-
-    // 新しいidxで更新
-    state.activeSlideIdx = idx;
+  // initInview()相当の処理（ここから）---------
+  // 対象となるメッシュは複数個を想定するためループで回す
+  for (let i = 0; i < obj_array.length; i++) {
+    if(obj_array[i].dataWebgl == "twistPlane"){
+      gsap.to(obj_array[i].material.uniforms.uProgress, {
+        value: 1.0, // 遷移後の値
+        duration: 2.0,
+        ease: "none",
+        scrollTrigger: {
+          trigger: obj_array[i].$.el,
+          // start: "center 60%",
+          start: "top 90%",
+          // toggleActions: "play reverse play reverse",
+          toggleActions: "play pause pause reverse",
+          markers: true  // デバッグ用にマーカーを表示
+        }
+      });
+    }
+    else {
+      console.error("指定のエフェクト名(data-webgl属性)が見つかりませんでした");
+    }
   }
-  // 左右ボタン処理（ここまで）-------------------
-
-  // 初期状態で全動画を一時停止しておく
-  texes.forEach((tex) => {
-    // 初期状態で動画が見えないときがあるため少し待ってからpause()を実行
-    setTimeout(() => {
-      tex.source.data.pause?.();
-    }, 50);
-  });
+  // initInview()相当の処理（ここまで）---------
 
   render();
   function render() {
@@ -205,54 +185,11 @@ async function init() {
     for (let i = 0; i < obj_array.length; i++) {
       const mesh_obj = obj_array[i];
       updateMeshPosition(mesh_obj);
-      // uTickインクリメントはobj_array[]のループ内で
-      mesh_obj.material.uniforms.uTick.value++;
     }
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
     world.renderer.render(world.scene, world.camera);
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
-
-    // オブジェクトの参照渡しを設定済み
-    const tmp_activeSlideIdx = material.uniforms.uActiveSlideIdx.value;
-    const idx = utils.lerp(tmp_activeSlideIdx, state.activeSlideIdx, 0.1);
-    material.uniforms.uActiveSlideIdx.value = idx;
-    
-  }
-}
-
-let playInterval = null;
-let playingVideo = null; // 再生中の動画を設定
-
-function playVideo(idx){
-  // 初期表示でidX=2のものが正面に来るためidxに+2する（5枚のときだけ想定か）
-  const offset = 2;
-  // moduloでidxが0～4に
-  const i = (idx + offset) % texes.size;
-  console.log(`active index= ${i}`);
-
-  const uTex_idx = i + 1; //uTex?は1オリジンなので+1する
-  const texValue = material.uniforms["uTex" + uTex_idx].value;
-  // console.log('active slide: ', texValue.source.data);
-  
-  // 前回再生した動画を一時停止（初回は値が未設定なので ?.pause() としている）
-  playingVideo?.pause();
-
-  // テクスチャが画像か動画かの判定
-  if(texValue instanceof VideoTexture){
-    // console.log(`idx:${idx}：動画`);
-    // 真になるまで200msec単位で繰り返し判定
-    playInterval = setInterval(() => {
-      // activeSlideIdxに等しかったら再生
-      if(material.uniforms.uActiveSlideIdx.value === idx) {
-        // 再生指示した動画情報を退避
-        playingVideo = texValue.source.data;
-        // 画像だと.play()が未対応なので.play?.()としておく
-        playingVideo.play?.();
-        // 再生開始したのでタイマーをクリア
-        clearInterval(playInterval);
-      }
-    }, 200);
   }
 }
 
