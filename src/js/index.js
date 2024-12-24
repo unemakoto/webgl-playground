@@ -1,5 +1,5 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, Vector4, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, Vector2, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
 import defaultVertexGlsl from "./glsl/default/vertex.glsl";
@@ -8,7 +8,8 @@ import GUI from "lil-gui";
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 // import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass.js';
-import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
+// import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -160,8 +161,14 @@ async function init() {
   // ポストプロセス処理
   const composer = new EffectComposer(world.renderer);
   composer.addPass(new RenderPass(world.scene, world.camera));
-  const afterimagePass = new AfterimagePass();
-  composer.addPass(afterimagePass);
+  const bloomPass = new UnrealBloomPass(
+    // new Vector2(window.innerWidth, window.innerHeight), // 解像度
+    new Vector2(canvasRect.width, canvasRect.height), // 解像度
+    1.5, // 強度 (thresholdにかかる明るさの増幅)
+    0.4, // 半径 (ぼかしの範囲)
+    0.85 // 閾値 (対象とする明るさ)
+  );
+  composer.addPass(bloomPass);
 
   render();
   function render() {
