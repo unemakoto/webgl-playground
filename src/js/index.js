@@ -7,7 +7,8 @@ import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
 import GUI from "lil-gui";
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass.js';
+// import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass.js';
+import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -156,12 +157,11 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
-  // ポストプロセスの準備
+  // ポストプロセス処理
   const composer = new EffectComposer(world.renderer);
   composer.addPass(new RenderPass(world.scene, world.camera));
-  // グリッチのエフェクトをかける
-  const glitchPass = new GlitchPass();
-  composer.addPass(glitchPass);
+  const afterimagePass = new AfterimagePass();
+  composer.addPass(afterimagePass);
 
   render();
   function render() {
