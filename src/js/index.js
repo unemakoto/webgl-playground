@@ -12,7 +12,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 // import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 // import { DotScreenPass } from 'three/examples/jsm/postprocessing/DotScreenPass.js';
 // import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
-import { HalftonePass } from 'three/examples/jsm/postprocessing/HalftonePass.js';
+// import { HalftonePass } from 'three/examples/jsm/postprocessing/HalftonePass.js';
+import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -164,21 +165,9 @@ async function init() {
   // ポストプロセス処理
   const composer = new EffectComposer(world.renderer);
   composer.addPass(new RenderPass(world.scene, world.camera));
-
-  const params = {
-    shape: 1,            // 1: dots, 2: ellipse, 3: line, 4: square
-    radius: 4,           // ドットのサイズ
-    rotateR: Math.PI / 12, // 赤チャネルの回転角度
-    rotateB: Math.PI / 24, // 青チャネルの回転角度
-    rotateG: Math.PI / 8,  // 緑チャネルの回転角度
-    scatter: 0,          // ドットのばらつき
-    blending: 1,         // ブレンドモード（0: 通常, 1: 乗算, 2: 加算）
-    blendingMode: 1,     // ブレンドモード
-    greyscale: false,    // グレースケールモード
-    disable: false       // ハーフトーン効果を無効化
-  };
-  const halftonePass = new HalftonePass(canvasRect.width, canvasRect.height, params);
-  composer.addPass(halftonePass);
+  const pixelSize = 8; // ピクセルサイズ（大きいほどピクセル化が目立つ）
+  const pixelatedPass = new RenderPixelatedPass(pixelSize, world.scene, world.camera);
+  composer.addPass(pixelatedPass);
 
 
   render();
