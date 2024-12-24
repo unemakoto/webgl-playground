@@ -2,12 +2,12 @@ import "../css/style.css";
 import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, Vector4, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import twistPlaneVertexGlsl from "./glsl/twistPlane/vertex.glsl";
-import twistPlaneFragmentGlsl from "./glsl/twistPlane/fragment.glsl";
+import defaultVertexGlsl from "./glsl/default/vertex.glsl";
+import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
 import GUI from "lil-gui";
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass.js';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -18,6 +18,7 @@ function enableDebugMode(debug) {
 
 const world = {};
 const obj_array = [];// objが入る配列
+let material = null;
 
 const canvas = document.querySelector('#canvas');
 let canvasRect = canvas.getBoundingClientRect();
@@ -38,6 +39,7 @@ async function init() {
   // レンダラーの設定
   world.renderer.setSize(canvasRect.width, canvasRect.height, false);
   world.renderer.setPixelRatio(window.devicePixelRatio);
+  // world.renderer.setPixelRatio(1); // iMacのsafariでスクロールがガタつくため1に落としてみた
   world.renderer.setClearColor(0x000000, 0);
 
   // シーン、カメラの作成
@@ -47,9 +49,6 @@ async function init() {
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
 
-  // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
-  gsap.registerPlugin(ScrollTrigger);
-
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
   const prms = [...elements].map(async (el) => {
@@ -58,20 +57,29 @@ async function init() {
     const texes = await loader.getTexByElement(el); // 先にコール
     const rect = el.getBoundingClientRect(); // awaitの後で実行
 
-    // 平面をぐにゃぐにゃにさせるため30x30ぐらいに分割
-    const geometry = new PlaneGeometry(rect.width, rect.height, 30, 30);
-    // ShaderMaterial()でuniform変数を定義
-    const material = new ShaderMaterial({
-      vertexShader: twistPlaneVertexGlsl,
-      fragmentShader: twistPlaneFragmentGlsl,
-      side: DoubleSide, // 裏面にも同じテクスチャ画像を表示
-      uniforms: {
-        // uTex1: {value: tex},
-        uProgress: { value: 0.0 }
-      },
-      transparent: true,
-      alphaTest: 0.5
-    });
+    // メッシュは相棒DOMと同じサイズを指定
+    const geometry = new PlaneGeometry(rect.width, rect.height);
+
+    // data-webglの属性値を取得
+    const dataWebgl = el.getAttribute('data-webgl');
+    console.log(dataWebgl);
+
+    if(dataWebgl == "default"){
+      material = new ShaderMaterial({
+        vertexShader: defaultVertexGlsl,
+        fragmentShader: defaultFragmentGlsl,
+        side: DoubleSide,
+        uniforms: {
+          uProgress: { value: 0.0 },
+          uTick: {value: 0}
+        },
+        transparent: true,
+        alphaTest: 0.5
+      });
+    }
+    else {
+      console.error("指定のエフェクト名(data-webgl属性)が見つかりませんでした");
+    }
 
     // 複数のテクスチャ画像をuniform変数に設定
     texes.forEach((tex, key) => {
@@ -129,10 +137,6 @@ async function init() {
     mesh.position.x = x;
     mesh.position.y = y;
 
-    // data-webglの属性値も取得してobjに設定
-    const dataWebgl = el.getAttribute('data-webgl');
-    console.log(dataWebgl);
-    
     // 取得したメッシュ情報をオブジェクトにまとめておく
     const obj = {
       mesh,
@@ -152,29 +156,12 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
-  // initInview()相当の処理（ここから）---------
-  // 対象となるメッシュは複数個を想定するためループで回す
-  for (let i = 0; i < obj_array.length; i++) {
-    if(obj_array[i].dataWebgl == "twistPlane"){
-      gsap.to(obj_array[i].material.uniforms.uProgress, {
-        value: 1.0, // 遷移後の値
-        duration: 2.0,
-        ease: "none",
-        scrollTrigger: {
-          trigger: obj_array[i].$.el,
-          // start: "center 60%",
-          start: "top 90%",
-          // toggleActions: "play reverse play reverse",
-          toggleActions: "play pause pause reverse",
-          markers: true  // デバッグ用にマーカーを表示
-        }
-      });
-    }
-    else {
-      console.error("指定のエフェクト名(data-webgl属性)が見つかりませんでした");
-    }
-  }
-  // initInview()相当の処理（ここまで）---------
+  // ポストプロセスの準備
+  const composer = new EffectComposer(world.renderer);
+  composer.addPass(new RenderPass(world.scene, world.camera));
+  // グリッチのエフェクトをかける
+  const glitchPass = new GlitchPass();
+  composer.addPass(glitchPass);
 
   render();
   function render() {
@@ -185,10 +172,13 @@ async function init() {
     for (let i = 0; i < obj_array.length; i++) {
       const mesh_obj = obj_array[i];
       updateMeshPosition(mesh_obj);
+      // uTickインクリメントはobj_array[]のループ内で
+      mesh_obj.material.uniforms.uTick.value++;
     }
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
-    world.renderer.render(world.scene, world.camera);
+    // world.renderer.render(world.scene, world.camera); // 元の記述を消す
+    composer.render();
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
   }
 }
