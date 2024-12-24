@@ -9,7 +9,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 // import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass.js';
 // import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+// import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { DotScreenPass } from 'three/examples/jsm/postprocessing/DotScreenPass.js';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -161,14 +162,8 @@ async function init() {
   // ポストプロセス処理
   const composer = new EffectComposer(world.renderer);
   composer.addPass(new RenderPass(world.scene, world.camera));
-  const bloomPass = new UnrealBloomPass(
-    // new Vector2(window.innerWidth, window.innerHeight), // 解像度
-    new Vector2(canvasRect.width, canvasRect.height), // 解像度
-    1.5, // 強度 (thresholdにかかる明るさの増幅)
-    0.4, // 半径 (ぼかしの範囲)
-    0.85 // 閾値 (対象とする明るさ)
-  );
-  composer.addPass(bloomPass);
+  const dotScreenPass = new DotScreenPass(new Vector2(0, 0), 0.5, 0.8);
+  composer.addPass(dotScreenPass);
 
   render();
   function render() {
