@@ -10,7 +10,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 // import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass.js';
 // import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
 // import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { DotScreenPass } from 'three/examples/jsm/postprocessing/DotScreenPass.js';
+// import { DotScreenPass } from 'three/examples/jsm/postprocessing/DotScreenPass.js';
+import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -67,14 +68,14 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if(dataWebgl == "default"){
+    if (dataWebgl == "default") {
       material = new ShaderMaterial({
         vertexShader: defaultVertexGlsl,
         fragmentShader: defaultFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
-          uTick: {value: 0}
+          uTick: { value: 0 }
         },
         transparent: true,
         alphaTest: 0.5
@@ -109,7 +110,7 @@ async function init() {
       //     ease: "none"
       //   });
       // });
-    
+
       // [folder2] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder2.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -162,8 +163,17 @@ async function init() {
   // ポストプロセス処理
   const composer = new EffectComposer(world.renderer);
   composer.addPass(new RenderPass(world.scene, world.camera));
-  const dotScreenPass = new DotScreenPass(new Vector2(0, 0), 0.5, 0.8);
-  composer.addPass(dotScreenPass);
+
+  const filmPass = new FilmPass(
+    1.0, // ノイズの強度
+    0.5, // スキャンラインの強度
+    200,   // スキャンラインの数
+    true  // グレースケール（効かない？）
+  );
+  composer.addPass(filmPass);
+  // グレースケールが効かないので個別に対応
+  filmPass.uniforms['grayscale'].value = 1.0;
+
 
   render();
   function render() {
