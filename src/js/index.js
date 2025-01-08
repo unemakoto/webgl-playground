@@ -1,19 +1,13 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, Vector2, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
-import defaultVertexGlsl from "./glsl/default/vertex.glsl";
-import defaultFragmentGlsl from "./glsl/default/fragment.glsl";
+import planeSphereVertexGlsl from "./glsl/planeSphere/vertex.glsl";
+import planeSphereFragmentGlsl from "./glsl/planeSphere/fragment.glsl";
 import GUI from "lil-gui";
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-// import { GlitchPass } from 'three/examples/jsm/postprocessing/GlitchPass.js';
-// import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
-// import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-// import { DotScreenPass } from 'three/examples/jsm/postprocessing/DotScreenPass.js';
-// import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
-// import { HalftonePass } from 'three/examples/jsm/postprocessing/HalftonePass.js';
-import { RenderPixelatedPass } from 'three/examples/jsm/postprocessing/RenderPixelatedPass.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // デバッグモードにしたい場合は引数を1にする。
 window.debug = enableDebugMode(1);
@@ -55,6 +49,9 @@ async function init() {
   world.camera = new PerspectiveCamera(viewport.fov_deg, viewport.aspect, viewport.near, viewport.far);
   world.camera.position.z = viewport.cameraZ;
 
+  // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
+  gsap.registerPlugin(ScrollTrigger);
+
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
   const prms = [...elements].map(async (el) => {
@@ -63,21 +60,65 @@ async function init() {
     const texes = await loader.getTexByElement(el); // 先にコール
     const rect = el.getBoundingClientRect(); // awaitの後で実行
 
-    // メッシュは相棒DOMと同じサイズを指定
-    const geometry = new PlaneGeometry(rect.width, rect.height);
+    // 平面の分割数をC4Dと合わせておく
+    // const plane_geometry = new PlaneGeometry(rect.width, rect.height, 8, 8);
+    const plane_geometry = new PlaneGeometry(rect.width, rect.height, 20, 10);
+
+    // geometryの時点でx軸周りに90度回転させておく
+    plane_geometry.rotateX(Math.PI / 2);
+
+    // gltfをロード
+    const gltfLoader = new GLTFLoader();
+    let gltf_geometry = null;
+
+    await new Promise((resolve, reject) => {
+      gltfLoader.load(
+        '/models/twist06.gltf', // glTFファイルのパスを指定
+        (gltf) => {
+          const _mesh = gltf.scene.children[0]; // 最初のメッシュを取得
+          if (_mesh && _mesh.geometry) {
+            gltf_geometry = _mesh.geometry; // ジオメトリを取得
+          } else {
+            console.error("GLTFモデルにジオメトリが含まれていません");
+            reject(new Error("No geometry found in GLTF model"));
+          }
+  
+          // もし小さく表示される場合はx,y,z方向に100倍して対応
+          // gltf_geometry.scale(100, 100, 100);
+
+          resolve();
+        },
+        undefined,
+        (error) => {
+          console.error('GLTF読み込みエラー:', error);
+          reject(error);
+        }
+      );
+    });
+
+    // 「position」に初期状態（ここではplane）を設定しておく（three.js仕様？）
+    plane_geometry.setAttribute('position', plane_geometry.getAttribute('position'));
+    // 「uv」に初期状態（ここではplane）を設定しておく
+    // （ここでは頂点の遅延をvertex.glslで設定しているため初期状態のuvも設定しておかないとダメだった）
+    plane_geometry.setAttribute('uv', plane_geometry.getAttribute('uv'));
+
+    // 初期ジオメトリとして平面のジオメトリを設定
+    plane_geometry.setAttribute('initGeometry', plane_geometry.getAttribute('position'));
+    // 最終ジオメトリとして巻物のジオメトリを設定
+    plane_geometry.setAttribute('finalGeometry', gltf_geometry.getAttribute('position'));
 
     // data-webglの属性値を取得
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if (dataWebgl == "default") {
+    if(dataWebgl == "planeSphere"){
       material = new ShaderMaterial({
-        vertexShader: defaultVertexGlsl,
-        fragmentShader: defaultFragmentGlsl,
+        vertexShader: planeSphereVertexGlsl,
+        fragmentShader: planeSphereFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
-          uTick: { value: 0 }
+          uTick: {value: 0}
         },
         transparent: true,
         alphaTest: 0.5
@@ -112,7 +153,7 @@ async function init() {
       //     ease: "none"
       //   });
       // });
-
+    
       // [folder2] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder2.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -136,7 +177,8 @@ async function init() {
     }
     // stats.js（ここまで）-----------------------
 
-    const mesh = new Mesh(geometry, material);
+    const mesh = new Mesh(plane_geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
     world.scene.add(mesh);
     // メッシュ位置を相棒DOMの座標に合わせる
     const { x, y } = getWorldPosition(rect, canvasRect);
@@ -146,7 +188,7 @@ async function init() {
     // 取得したメッシュ情報をオブジェクトにまとめておく
     const obj = {
       mesh,
-      geometry,
+      plane_geometry,
       material,
       rect,
       $: { el },
@@ -162,13 +204,24 @@ async function init() {
   // prms[]を並列で待つ
   await Promise.all(prms);
 
-  // ポストプロセス処理
-  const composer = new EffectComposer(world.renderer);
-  composer.addPass(new RenderPass(world.scene, world.camera));
-  const pixelSize = 8; // ピクセルサイズ（大きいほどピクセル化が目立つ）
-  const pixelatedPass = new RenderPixelatedPass(pixelSize, world.scene, world.camera);
-  composer.addPass(pixelatedPass);
-
+  // initInview()相当の処理（ここから）---------
+  // 対象となるメッシュは複数個を想定するためループで回す
+  for (let i = 0; i < obj_array.length; i++) {
+    gsap.to(obj_array[i].material.uniforms.uProgress, {
+      value: 1.0, // 遷移後の値
+      duration: 2.0,
+      // ease: "none",
+      ease: "power4.out",
+      scrollTrigger: {
+        trigger: obj_array[i].$.el,
+        start: "center 60%",
+        // toggleActions: "play reverse play reverse",
+        toggleActions: "play pause pause reverse",
+        markers: true  // デバッグ用にマーカーを表示
+      }
+    });
+  }
+  // initInview()相当の処理（ここまで）---------
 
   render();
   function render() {
@@ -184,8 +237,7 @@ async function init() {
     }
 
     if (window.debug) statsJsControl?.begin(); // fpsの計測（ここから）
-    // world.renderer.render(world.scene, world.camera); // 元の記述を消す
-    composer.render();
+    world.renderer.render(world.scene, world.camera); // 元の記述を消す
     if (window.debug) statsJsControl?.end(); // fpsの計測（ここまで）
   }
 }
@@ -241,7 +293,7 @@ function bindResizeEvents() {
 }
 
 function resizeMesh(mesh_obj, newCanvasRect) {
-  const { $: { el }, mesh, geometry, rect } = mesh_obj;
+  const { $: { el }, mesh, plane_geometry, rect } = mesh_obj;
   const newRect = el.getBoundingClientRect();
   // DOMと同じ座標にする
   const { x, y } = getWorldPosition(newRect, newCanvasRect);
@@ -249,7 +301,7 @@ function resizeMesh(mesh_obj, newCanvasRect) {
   mesh.position.y = y;
 
   // メッシュのサイズも変更する
-  geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
+  plane_geometry.scale(newRect.width / rect.width, newRect.height / rect.height, 1);
   // mesh_obj.rectをリサイズ後の値で更新しておく
   mesh_obj.rect = newRect;
 }
