@@ -70,10 +70,13 @@ async function init() {
     // gltfをロード
     const gltfLoader = new GLTFLoader();
     let gltf_geometry = null;
+    // gltfはpublic/models/配下に置いた
+    const gltf_file_path = import.meta.env.VITE_HTML_PATH + '/models/twist06.gltf';
 
     await new Promise((resolve, reject) => {
       gltfLoader.load(
-        '/models/twist06.gltf', // glTFファイルのパスを指定
+        // '/models/twist06.gltf', // glTFファイルのパスを指定
+        gltf_file_path,
         (gltf) => {
           const _mesh = gltf.scene.children[0]; // 最初のメッシュを取得
           if (_mesh && _mesh.geometry) {
