@@ -1,9 +1,11 @@
 import "../css/style.css";
-import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide } from "three";
+import { WebGLRenderer, Scene, PerspectiveCamera, PlaneGeometry, ShaderMaterial, Mesh, AxesHelper, DoubleSide, Points } from "three";
 import viewport from "./viewport";
 import loader from "./loader";
 import switchTexVertexGlsl from "./glsl/switchTex/vertex.glsl";
 import switchTexFragmentGlsl from "./glsl/switchTex/fragment.glsl";
+import wavePlaneVertexGlsl from "./glsl/wavePlane/vertex.glsl";
+import wavePlaneFragmentGlsl from "./glsl/wavePlane/fragment.glsl";
 import GUI from "lil-gui";
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -51,6 +53,53 @@ async function init() {
   // ScrollTriggerの登録はページ全体で一度だけ実行すればいい
   gsap.registerPlugin(ScrollTrigger);
 
+  // 波打つ平面（ここから）=========================
+  // 湾曲する平面のジオメトリ（30x30に分割）
+  const wave_plane = new PlaneGeometry(1000, 1000, 30, 30);
+
+  // 湾曲する平面のマテリアル
+  const wave_material = new ShaderMaterial({
+    uniforms: {
+      // uTex: { value: texture },
+      uProgress: { value: 0.0 },
+      uTick: { value: 0 }
+    },
+    vertexShader: wavePlaneVertexGlsl,
+    fragmentShader: wavePlaneFragmentGlsl,
+    side: DoubleSide,
+    transparent: true,
+    alphaTest: 0.5
+  });
+
+  // 湾曲する平面のPoints
+  const points = new Points(wave_plane, wave_material);
+  world.scene.add(points);
+  // 平面を90度回転
+  wave_plane.rotateX(Math.PI / 2);
+  // 少し下に下げる
+  wave_plane.translate(0, -400, 0);
+
+  // ScrollTriggerを利用したscrub操作のアニメーション
+  // 回転角度を管理する補助変数
+  const rotation = { angle: Math.PI / 2 }; // 初期値: 90度
+  // 湾曲平面のスクラブ処理
+  gsap.to(rotation, {
+    angle: Math.PI, // 最終値: 180度
+    scrollTrigger: {
+      trigger: "body", // トリガー要素としてbodyタグを指定
+      start: "top top", // アニメーション開始位置
+      end: "bottom bottom", // アニメーション終了位置
+      scrub: true,
+      markers: true, // デバッグ用マーカー
+    },
+    onUpdate: () => {
+      // rotateXで更新
+      wave_plane.rotateX(rotation.angle - wave_plane.userData.lastAngle || 0); // 差分を適用
+      wave_plane.userData.lastAngle = rotation.angle; // 最後の角度を保存
+    }
+  });
+  // 波打つ平面（ここまで）=========================
+
   const elements = document.querySelectorAll('[data-webgl]');
   // .forEach()から.map()に書き換え
   const prms = [...elements].map(async (el) => {
@@ -66,14 +115,14 @@ async function init() {
     const dataWebgl = el.getAttribute('data-webgl');
     console.log(dataWebgl);
 
-    if(dataWebgl == "switchTex"){
+    if (dataWebgl == "switchTex") {
       material = new ShaderMaterial({
         vertexShader: switchTexVertexGlsl,
         fragmentShader: switchTexFragmentGlsl,
         side: DoubleSide,
         uniforms: {
           uProgress: { value: 0.0 },
-          uTick: {value: 0}
+          uTick: { value: 0 }
         },
         transparent: true,
         alphaTest: 0.5
@@ -96,7 +145,7 @@ async function init() {
       // ON,OFFを切り替えるためのオブジェクト（初期値off）
       const isActive = { value: false };
       const folder1 = gui.addFolder("OrbitControls");
-    
+
       // [folder1] OrbitControlsのチェックボックス
       // .onChange()はlil-guiの仕様。isActive.valueに変化があったら引数のコールバックを実行
       folder1.add(isActive, "value").name('OrbitControlsのON/OFF').onChange(() => {
@@ -167,6 +216,7 @@ async function init() {
   render();
   function render() {
     requestAnimationFrame(render);
+    wave_material.uniforms.uTick.value++;
     // 全てのメッシュの座標を更新する
     // obj_array.forEach((mesh_obj) => { updateMeshPosition(mesh_obj) });
     // 処理量削減のためforEach()をfor()で書き換え
@@ -284,7 +334,7 @@ function _attachStatsJs() {
 // // scrollTriggerの初期化処理
 // function initInview(){
 //   gsap.registerPlugin(ScrollTrigger);
-//   const elements = document.querySelectorAll('[data-webgl]'); 
+//   const elements = document.querySelectorAll('[data-webgl]');
 //   elements.forEach(el => {
 //     gsap.to(el, {
 //       x: 100,
